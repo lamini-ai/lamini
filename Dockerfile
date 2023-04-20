@@ -21,6 +21,6 @@ WORKDIR /app/${PACKAGE_NAME}
 RUN chmod a+x /app/${PACKAGE_NAME}/scripts/start.sh
 
 ENV PACKAGE_NAME=$PACKAGE_NAME
-ENTRYPOINT /app/${PACKAGE_NAME}/scripts/start.sh
+ENTRYPOINT ["/app/lamini-datasets/scripts/start.sh"]
 
 

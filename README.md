@@ -5,41 +5,38 @@
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This is the repo for the Lamini ChatGPT project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
+This is the repo for the Lamini project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
 
 - The [52K data](#data-release) used for fine-tuning the model.
 - The code for [generating the data](#data-generation-process).
 
-
 ### Authentication to Lamini
 
-Ready to configure your API key? It's easy-peasy! Create a secret config file and put your key in it to get started.
+Ready to configure your API key? It's easy-peasy! 🔑
 
-First, navigate to your [Lamini account page](https://app.powerml.co) to retrieve your unique API key. Remember to keep this key a secret and don't expose it in any client-side code or share it with others.
+First, navigate to your [Lamini account page](https://app.powerml.co) to retrieve your unique API key. Remember to keep this key a secret, and don't expose it in any client-side code or share it with others.
 
-Next, create a config file , like so:
+Next, create a config file, like so:
 
 ```
 mkdir ~/.powerml
-touch ~/.powerml/configure_llama.yaml
+touch ~/.powerml/configure_llama.yaml # backend system names
 ```
 
-Finally, open it with a text editor and place your key in it:
+Finally, open the file with a text editor and place your key in it:
 
 ```
 production:
     key: "<YOUR-KEY-HERE>"
 ```
 
-The best part? The [Lamini python package](https://pypi.org/project/llama-llm) will automatically load your key from this config file for you, so you don't have to worry about it.
+The best part? The [Lamini python package](https://pypi.org/project/llama-llm) will automatically load your key from this config file for you, so you don't have to worry about it. 🙌
 
-If you're running Lamini in a docker container, make sure to copy/mount this file inside the container.
-
-Configuring your Lamini API key has never been so easy!
+If you're running Lamini in a docker container, make sure to copy/mount this file inside the container. 🐳
 
 See our [API docs](https://powerml.github.io/auth/) for more details.
 
-### Run Using Python
+### Run Using Python 🐍
 
 Install python dependencies
 
@@ -47,13 +44,13 @@ Install python dependencies
 pip install -r requirements.txt
 ```
 
-Run the program to generate data
+Run the program to generate data 📊📊📊
 
 ```
 PYTHONPATH=$LOCAL_DIRECTORY/.. python3 generate_data.py
 ```
 
-### Run Using Docker
+### Run Using Docker 🐳
 
 Make sure you have [docker](https://docs.docker.com/get-docker/) installed.
 
@@ -63,11 +60,11 @@ Then run this command:
 ./run_generate_data_docker.py
 ```
 
-It's poggers.
+It's poggers 💥
 
-## Data Release
+## Data Release 💸 
 
-[`data/lamini_dataset.json`](./data/lamini_dataset.json) contains 52K instruction-following data we generated.
+[`data/lamini_dataset.json`](./data/lamini_dataset.json) contains 52K instruction-following data we generated for commercial use (ie. feel free to use it for your business! 💰📈).
 This JSON file is a list of dictionaries, each dictionary contains the following fields:
 
 - `question`: `str`, describes the task the model should perform. Each of the 52K instructions is unique.

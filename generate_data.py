@@ -27,8 +27,8 @@ def main():
 
     arguments = vars(parser.parse_args())
 
-    total_examples = arguments["count"]
-    batch_size = arguments["batch_size"]
+    total_examples = int(arguments["count"])
+    batch_size = int(arguments["batch_size"])
 
     for count in range(0, total_examples, batch_size):
         print(f"Processing index {count} out of {total_examples} using batch size {batch_size}")
