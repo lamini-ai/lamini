@@ -5,14 +5,10 @@
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This is the repo for the Lamini ChatGPT project, which aims to build and share an instruction-following model with CC-BY license. The repo contains:
+This is the repo for the Lamini ChatGPT project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
 
 - The [52K data](#data-release) used for fine-tuning the model.
 - The code for [generating the data](#data-generation-process).
-
-### Install
-
-0. [Install docker](https://docs.docker.com/get-docker/)
 
 
 ### Authentication to Lamini
@@ -59,9 +55,15 @@ PYTHONPATH=$LOCAL_DIRECTORY/.. python3 generate_data.py
 
 ### Run Using Docker
 
+Make sure you have [docker](https://docs.docker.com/get-docker/) installed.
+
+Then run this command:
+
 ```bash
 ./run_generate_data_docker.py
 ```
+
+It's poggers.
 
 ## Data Release
 
