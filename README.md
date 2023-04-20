@@ -1,14 +1,16 @@
 
 # Lamini: Create Your Own ChatGPT
-
 [![License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 
 This is the repo for the Lamini project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
 
 - The [52K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT. 
 - The code for [generating the data](#run).
+
+See our [blogpost](https://lamini.ai/blog) for layperson's terms on what's going on.
 
 🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫
 
