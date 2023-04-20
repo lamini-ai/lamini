@@ -5,21 +5,43 @@ from llama import Type, Context, LLM
 import time
 import jsonlines
 import random
+import argparse
 
 import os
 
 
 def main():
-    generate_questions()
-    generate_responses()
+    parser = argparse.ArgumentParser(
+        prog="Lamini", description="Generates data for LLM instruction tuning"
+    )
+
+    parser.add_argument(
+        "-c", "--count", default=100, help="The number of examples to generate."
+    )
+    parser.add_argument(
+        "-b",
+        "--batch-size",
+        default=10,
+        help="The number of examples to generate in a batch.",
+    )
+
+    arguments = vars(parser.parse_args())
+
+    total_examples = arguments["count"]
+    batch_size = arguments["batch_size"]
+
+    for count in range(0, total_examples, batch_size):
+        print(f"Processing index {count} out of {total_examples} using batch size {batch_size}")
+        generate_questions(index=count, batch_size=batch_size)
+        generate_responses(index=count, batch_size=batch_size)
 
 
-def generate_questions():
+def generate_questions(index, batch_size):
 
-    with open("data/questions.jsonl", "w") as questions_file:
+    with open("data/questions.jsonl", "a") as questions_file:
         writer = jsonlines.Writer(questions_file, flush=True)
 
-        generate_questions_sequential(writer)
+        generate_questions_sequential(writer, index, batch_size)
 
 
 class Question(Type):
@@ -27,12 +49,10 @@ class Question(Type):
 
 
 class NovelQuestion(Type):
-    question: str = Context(
-        "a novel question, a questions with a radically different subject"
-    )
+    question: str = Context("a novel question, with a radically different subject")
 
 
-def generate_questions_sequential(writer):
+def generate_questions_sequential(writer, start_index, batch_size):
 
     llm = LLM(name="generate-lamini")
 
@@ -40,7 +60,8 @@ def generate_questions_sequential(writer):
 
     llm.add_data(make_pairs(seed_instructions))
 
-    for instruction in seed_instructions:
+    for index in range(start_index, start_index + batch_size):
+        instruction = seed_instructions[index % len(seed_instructions)]
         print("====== Seed Question =====\n", instruction)
         novel_question = llm(
             input=instruction,
@@ -96,16 +117,15 @@ def load_questions(path, key="question"):
             )
 
 
-def generate_responses():
-    questions = load_questions(path="data/1_questions.jsonl")
+def generate_responses(index, batch_size):
+    questions = list(load_questions(path="data/questions.jsonl"))
 
-    responses = generate_responses_for_questions(questions)
+    with open("data/dataset.jsonl", "a") as dataset_file:
+        writer = jsonlines.Writer(dataset_file, flush=True)
 
-    with open("data/dataset.jsonl", "w") as dataset_file:
-        writer = jsonlines.Writer(dataset_file)
-
-        for response in responses:
-            writer.write(response.dict())
+        generate_responses_for_questions(
+            questions, writer, index=index, batch_size=batch_size
+        )
 
 
 class Response(Type):
@@ -117,35 +137,32 @@ class QuestionAndResponse(Type):
     response: str = Context("the response to the question")
 
 
-def generate_responses_for_questions(questions):
+def generate_responses_for_questions(questions, writer, index, batch_size):
 
     llm = LLM(name="generate-lamini-reponse")
 
-    responses = []
-
-    for question in questions:
+    for question in questions[index:index+batch_size]:
         print("====== Question =====\n", question)
         response = llm(
             input=question,
             output_type=Response,
-            temperature=0,
+            temperature=0.0,
             model_name="lamini/instruct",
             max_tokens=128,
         )
         response.response = parse_response(response.response)
         print("===== Response =====\n", response)
-        responses.append(
-            QuestionAndResponse(question=question.question, response=response.response)
+        question_and_response = QuestionAndResponse(
+            question=question.question, response=response.response
         )
-
-    return responses
+        writer.write(question_and_response.dict())
 
 
 def parse_response(string):
-    break_point = string.find("\n\n")
+    #break_point = string.find("\n\n")
 
-    if break_point >= 0:
-        string = string[:break_point]
+    #if break_point >= 0:
+    #    string = string[:break_point]
 
     return string.strip()
 
