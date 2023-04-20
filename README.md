@@ -10,7 +10,7 @@ This is the repo for the Lamini project, which aims to build and share an instru
 - The [52K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT. 
 - The code for [generating the data](#run).
 
- 🦙🐪🦙🐫
+ 🦙🐪🦙🐫 **[Lamini](https://lamini.ai/) is Lamini is the world's most powerful LLM engine, unlocking the power of generative AI for every company by putting their data to work. It is based on the [lamini tribe](https://en.wikipedia.org/wiki/Lamini), which includes llamas (LLMs!), camels, etc.**
 
 ## Authentication to Lamini
 
