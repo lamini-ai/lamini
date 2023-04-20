@@ -1,5 +1,5 @@
 
-# Lamini: Create Your Own ChatGPT
+# Lamini: Create Your Own ChatGPT 🦙
 
 [![License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
@@ -66,7 +66,7 @@ Then, run this command:
 ./run_generate_data_docker.sh
 ```
 
-## Expected Outputs & Autosaved Data
+## Expected Outputs & Autosaved Data 🦙
 When you run the program, you should start seeing output of a `Seed Question`, from the original small dataset in [`seed_tasks.jsonl`](./seed_tasks.jsonl), and a `Novel Question`, which is a generated question based on that `Seed Question`.[^1]
 [^1]: The `Seed Questions` in the Lamini seed dataset are instructions (combination of questions and commands), based on the [self-instruct dataset](https://github.com/yizhongw/self-instruct). The generated questions are similar in nature to those and therefore don't *have to* be questions. You can find the seed dataset at [`data/lamini_dataset.json`](./data/lamini_dataset.jsonl).
 ```
