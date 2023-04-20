@@ -1,5 +1,5 @@
 
-# Lamini: Create Your Own ChatGPT 🦙🐪🦙🐫
+# Lamini: Create Your Own ChatGPT
 
 [![License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
@@ -9,6 +9,8 @@ This is the repo for the Lamini project, which aims to build and share an instru
 
 - The [52K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT. 
 - The code for [generating the data](#run).
+
+ 🦙🐪🦙🐫
 
 ## Authentication to Lamini
 
