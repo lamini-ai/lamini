@@ -36,28 +36,34 @@ If you're running Lamini in a docker container, make sure to copy/mount this fil
 
 See our [API docs](https://powerml.github.io/auth/) for more details.
 
-### Run Using Python 🐍
+### Run 
+Clone the repository
+```
+git clone git@github.com:lamini-ai/lamini.git
+```
 
-Install python dependencies
+#### Using Python 🐍
+
+In the repository, install python dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-Run the program to generate data 📊📊📊
+Run the program, to start generating data 📊📊📊
 
 ```
 PYTHONPATH=$LOCAL_DIRECTORY/.. python3 generate_data.py
 ```
 
-### Run Using Docker 🐳
+#### Using Docker 🐳
 
 Make sure you have [docker](https://docs.docker.com/get-docker/) installed.
 
-Then run this command:
+Then, run this command:
 
 ```bash
-./run_generate_data_docker.py
+./run_generate_data_docker.sh
 ```
 
 It's poggers 💥
