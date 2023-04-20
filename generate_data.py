@@ -121,8 +121,6 @@ def load_questions(path, key="question"):
         reader = jsonlines.Reader(questions_file)
 
         for index, line in enumerate(reader):
-            if index > 2000:
-                break
             yield Question(
                 question=line[key],
             )
