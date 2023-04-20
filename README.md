@@ -7,7 +7,7 @@
 
 This is the repo for the Lamini project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
 
-- The [52K data](#data-release) used for fine-tuning the model.
+- The [52K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT. 
 - The code for [generating the data](#data-generation-process).
 
 ## Authentication to Lamini
@@ -67,7 +67,7 @@ Then, run this command:
 ```
 
 ## Expected Outputs & Autosaved Data
-When you run the program, you should start seeing output of a `Seed Question`, from the original small dataset in `data/lamini_dataset.jsonl`, and a `Novel Question`, which is a generated question based on that `Seed Question`.[^1] 👀
+When you run the program, you should start seeing output of a `Seed Question`, from the original small dataset in [`seed_tasks.jsonl`](./seed_tasks.jsonl), and a `Novel Question`, which is a generated question based on that `Seed Question`.[^1]
 [^1]: The `Seed Questions` in the Lamini seed dataset are instructions (combination of questions and commands), based on the [self-instruct dataset](https://github.com/yizhongw/self-instruct). The generated questions are similar in nature to those and therefore don't *have to* be questions. You can find the seed dataset at [`data/lamini_dataset.json`](./data/lamini_dataset.jsonl).
 ```
 ====== Seed Question =====
@@ -77,7 +77,7 @@ When you run the program, you should start seeing output of a `Seed Question`, f
 ```
 These generated questions are saved to `data/questions.jsonl`. This JSON file is a list of dictionaries with a `question` field.
 
-Next, you'll see a `Response` generated for each `Novel Question`. 👀 👀 For example:
+Next, you'll see a `Response` generated for each `Novel Question`.
 ```
 ====== Question =====
  question='Which exercises are best'
