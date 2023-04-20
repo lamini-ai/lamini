@@ -26,16 +26,22 @@ def main():
         default=10,
         help="The number of examples to generate in a batch.",
     )
+    parser.add_argument(
+        "-r", "--response_data", default=False, help="Whether to use seed data as examples for response generation.", type=bool
+    )
 
     arguments = vars(parser.parse_args())
 
     total_examples = int(arguments["count"])
     batch_size = int(arguments["batch_size"])
+    add_response_data = int(arguments["response_data"])
 
     for count in range(0, total_examples, batch_size):
+        if count + batch_size > total_examples:
+            batch_size = total_examples - count
         print(f"Processing index {count} out of {total_examples} using batch size {batch_size}")
         generate_questions(start_index=count, batch_size=batch_size)
-        generate_responses(index=count, batch_size=batch_size)
+        generate_responses(index=count, batch_size=batch_size, add_response_data=add_response_data)
 
 
 class Question(Type):
@@ -135,13 +141,32 @@ class QuestionAndResponse(Type):
     response: str = Context("the response to the question")
 
 
-def generate_responses(index, batch_size):
+def load_seed_instances():
+    return load_questions_and_answers("seed_tasks.jsonl")
+
+def load_questions_and_answers(path, question_key="instruction", answer_key="output"):
+    questions_and_answers = []
+    with open(path) as questions_file:
+        reader = jsonlines.Reader(questions_file)
+
+        for _, line in enumerate(reader):
+            questions_and_answers.append([Question(
+                question=line[question_key],
+            ), Response(
+                response=line["instances"][0][answer_key],
+            )])
+    return questions_and_answers
+
+def generate_responses(index, batch_size, add_response_data=False):
     questions = list(load_questions(path="data/questions.jsonl"))
 
     with open("data/dataset.jsonl", "a") as dataset_file:
         writer = jsonlines.Writer(dataset_file, flush=True)
 
         llm = LLM(name="generate-lamini-reponse")
+
+        if add_response_data:
+            llm.add_data(load_seed_instances())
 
         for question in questions[index:index+batch_size]:
             print("====== Question =====\n", question)
