@@ -11,9 +11,10 @@ This is the repo for the Lamini project, which aims to build and share an instru
 
 See our [blogpost](https://lamini.ai/blog) for layperson's terms on what's going on.
 
+![Lamini Process Step by Step](assets/process.png "Lamini Process Step by Step")
+
 🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫
 
-![Lamini Process Step by Step](assets/process.png "Lamini Process Step by Step")
 
 ## Authentication to Lamini
 
