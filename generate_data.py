@@ -2,6 +2,8 @@ import llama
 
 from llama import Type, Context, LLM
 
+from llama.error.error import APIError as LlamaAPIError
+
 import time
 import jsonlines
 import random
@@ -32,16 +34,8 @@ def main():
 
     for count in range(0, total_examples, batch_size):
         print(f"Processing index {count} out of {total_examples} using batch size {batch_size}")
-        generate_questions(index=count, batch_size=batch_size)
+        generate_questions(start_index=count, batch_size=batch_size)
         generate_responses(index=count, batch_size=batch_size)
-
-
-def generate_questions(index, batch_size):
-
-    with open("data/questions.jsonl", "a") as questions_file:
-        writer = jsonlines.Writer(questions_file, flush=True)
-
-        generate_questions_sequential(writer, index, batch_size)
 
 
 class Question(Type):
@@ -52,27 +46,44 @@ class NovelQuestion(Type):
     question: str = Context("a novel question, with a radically different subject")
 
 
-def generate_questions_sequential(writer, start_index, batch_size):
+def generate_questions(start_index, batch_size):
 
-    llm = LLM(name="generate-lamini")
+    with open("data/questions.jsonl", "a") as questions_file:
+        writer = jsonlines.Writer(questions_file, flush=True)
 
-    seed_instructions = list(load_seed_dataset())
+        llm = LLM(name="generate-lamini")
 
-    llm.add_data(make_pairs(seed_instructions))
+        seed_instructions = list(load_seed_dataset())
 
-    for index in range(start_index, start_index + batch_size):
-        instruction = seed_instructions[index % len(seed_instructions)]
-        print("====== Seed Question =====\n", instruction)
-        novel_question = llm(
-            input=instruction,
-            output_type=NovelQuestion,
-            temperature=0.7,
-            model_name="lamini/open",
-            max_tokens=32,
-        )
-        novel_question.question = parse(novel_question.question)
-        print("===== Novel Question =====\n", novel_question)
-        writer.write(novel_question.dict())
+        llm.add_data(make_pairs(seed_instructions))
+
+        for index in range(start_index, start_index + batch_size):
+            instruction = seed_instructions[index % len(seed_instructions)]
+            print("====== Seed Question =====\n", instruction)
+            novel_question = get_question(llm, instruction)
+
+            novel_question.question = parse(novel_question.question)
+            print("===== Novel Question =====\n", novel_question)
+            writer.write(novel_question.dict())
+
+def get_question(llm, instruction):
+
+    attempts = 5
+
+    for i in range(attempts):
+        try:
+            return llm(
+                input=instruction,
+                output_type=NovelQuestion,
+                temperature=0.7,
+                model_name="lamini/open",
+                max_tokens=32,
+            )
+        except LlamaAPIError as e:
+            print("Lamini API error {i}, retrying")
+
+    raise RuntimeError("Too many Lamini API errors.")
+
 
 
 def make_pairs(seed_instructions):
@@ -117,17 +128,6 @@ def load_questions(path, key="question"):
             )
 
 
-def generate_responses(index, batch_size):
-    questions = list(load_questions(path="data/questions.jsonl"))
-
-    with open("data/dataset.jsonl", "a") as dataset_file:
-        writer = jsonlines.Writer(dataset_file, flush=True)
-
-        generate_responses_for_questions(
-            questions, writer, index=index, batch_size=batch_size
-        )
-
-
 class Response(Type):
     response: str = Context("the response to the question")
 
@@ -137,25 +137,42 @@ class QuestionAndResponse(Type):
     response: str = Context("the response to the question")
 
 
-def generate_responses_for_questions(questions, writer, index, batch_size):
+def generate_responses(index, batch_size):
+    questions = list(load_questions(path="data/questions.jsonl"))
 
-    llm = LLM(name="generate-lamini-reponse")
+    with open("data/dataset.jsonl", "a") as dataset_file:
+        writer = jsonlines.Writer(dataset_file, flush=True)
 
-    for question in questions[index:index+batch_size]:
-        print("====== Question =====\n", question)
-        response = llm(
-            input=question,
-            output_type=Response,
-            temperature=0.0,
-            model_name="lamini/instruct",
-            max_tokens=128,
-        )
-        response.response = parse_response(response.response)
-        print("===== Response =====\n", response)
-        question_and_response = QuestionAndResponse(
-            question=question.question, response=response.response
-        )
-        writer.write(question_and_response.dict())
+        llm = LLM(name="generate-lamini-reponse")
+
+        for question in questions[index:index+batch_size]:
+            print("====== Question =====\n", question)
+            response = get_response(llm, question)
+
+            response.response = parse_response(response.response)
+            print("===== Response =====\n", response)
+            question_and_response = QuestionAndResponse(
+                question=question.question, response=response.response
+            )
+            writer.write(question_and_response.dict())
+
+def get_response(llm, question):
+
+    attempts = 5
+
+    for i in range(attempts):
+        try:
+            return llm(
+                input=question,
+                output_type=Response,
+                temperature=0.0,
+                model_name="lamini/instruct",
+                max_tokens=128,
+            )
+        except LlamaAPIError as e:
+            print("Lamini API error {i}, retrying")
+
+    raise RuntimeError("Too many Lamini API errors.")
 
 
 def parse_response(string):
