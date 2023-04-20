@@ -1,5 +1,5 @@
 
-# Lamini: Create Your Own ChatGPT 🦙
+# Lamini: Create Your Own ChatGPT 🦙🐪🦙🐫
 
 [![License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
