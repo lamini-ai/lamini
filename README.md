@@ -59,7 +59,7 @@ pip install -r requirements.txt
 Run the program, to start generating data 📊📊📊
 
 ```
-PYTHONPATH=$LOCAL_DIRECTORY/.. python3 generate_data.py
+python3 generate_data.py
 ```
 
 ### Using Docker 🐳
