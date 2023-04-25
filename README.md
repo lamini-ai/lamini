@@ -20,7 +20,7 @@ See our [blogpost](https://lamini.ai/blog) for layperson's terms on what's going
 
 Ready to configure your API key? It's easy-peasy! 🔑
 
-First, navigate to your [Lamini account page](https://app.powerml.co) to retrieve your unique API key. Remember to keep this key a secret, and don't expose it in any client-side code or share it with others.
+First, navigate to your [Lamini account page](https://app.lamini.ai) to retrieve your unique API key. Remember to keep this key a secret, and don't expose it in any client-side code or share it with others.
 
 Next, create a config file, like so:
 
@@ -40,7 +40,7 @@ The best part? The [Lamini python package](https://pypi.org/project/llama-llm) w
 
 If you're running Lamini in a docker container, make sure to copy/mount this file inside the container 🐳
 
-See our [API docs](https://powerml.github.io/auth/) for more details.
+See our [API docs](https://lamini-ai.github.io/auth/) for more details.
 
 ## Run
 Clone the repository:
@@ -98,7 +98,7 @@ It's poggers 💥
 ## Modify
 
 ### I want to use my own seed data
-We suggest creating your own dataset and changing the path to the [`seed_tasks.jsonl`](./seed_tasks.jsonl) in `generate_data.py`(./generate_data.py) --- or you can replace  [`seed_tasks.jsonl`](./seed_tasks.jsonl) with your own data in the same format. You can of course also modify how the data is loaded or write your own script with the `llama-llm` library (pssst, [API docs](https://powerml.github.io/auth/)).
+We suggest creating your own dataset and changing the path to the [`seed_tasks.jsonl`](./seed_tasks.jsonl) in `generate_data.py`(./generate_data.py) --- or you can replace  [`seed_tasks.jsonl`](./seed_tasks.jsonl) with your own data in the same format. You can of course also modify how the data is loaded or write your own script with the `llama-llm` library (pssst, [API docs](https://lamini-ai.github.io/auth/)).
 
 ### I only want to generate questions (to start)
 In `generate_data.py`(./generate_data.py), you can just run `generate_questions`. This is a common use case for using human review after the question generation step to filter only the good ones for the next step of generating a response for each question.
