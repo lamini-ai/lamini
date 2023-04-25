@@ -61,6 +61,8 @@ def main():
     pt = PunktSentenceTokenizer()
 
     for i, example in enumerate(dataset):
+        if not example["response"]:
+            continue
         sentences = [{'sentence': sentence, 'span': span} for sentence, span in zip(pt.tokenize(example["response"]), pt.span_tokenize(example["response"]))]
         if remove_fuzzy:
             filtered_sentences = fuzzy_remove_duplicates(sentences)
