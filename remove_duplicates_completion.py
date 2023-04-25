@@ -61,14 +61,12 @@ def main():
     pt = PunktSentenceTokenizer()
 
     for i, example in enumerate(dataset):
+        sentences = [{'sentence': sentence, 'span': span} for sentence, span in zip(pt.tokenize(example["response"]), pt.span_tokenize(example["response"]))]
         if remove_fuzzy:
-            sentences = [{'sentence': sentence, 'span': span} for sentence, span in zip(pt.tokenize(example["response"]), pt.span_tokenize(example["response"]))]
             filtered_sentences = fuzzy_remove_duplicates(sentences)
-            example["response"] = ''.join([example["response"][span[0]:span[1]] for span in filtered_sentences])
         else:
-            sentences = [{'sentence': sentence, 'span': span} for sentence, span in zip(pt.tokenize(example["response"]), pt.span_tokenize(example["response"]))]
             filtered_sentences = remove_duplicates(sentences)
-            example["response"] = ''.join([example["response"][span[0]:span[1]] for span in filtered_sentences])
+        example["response"] = ''.join([example["response"][span[0]:span[1]] for span in filtered_sentences])
         filtered_dataset.append(example)
 
         if len(sentences) - len(filtered_sentences):
