@@ -8,6 +8,7 @@ This is the repo for the Lamini project, which aims to build and share an instru
 
 - The [71K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT.
 - The code for [generating the data](#run).
+- Fine-tuned Pythia models on Huggingface [weights](https://huggingface.co/lamini/instruct-tuned-2.8b) [playground](https://huggingface.co/spaces/lamini/instruct-playground).
 
 See our [blogpost](https://lamini.ai/blog) for layperson's terms on what's going on.
 
