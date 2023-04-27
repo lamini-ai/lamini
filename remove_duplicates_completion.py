@@ -64,6 +64,9 @@ def main():
         if not example["response"]:
             continue
         sentences = [{'sentence': sentence, 'span': span} for sentence, span in zip(pt.tokenize(example["response"]), pt.span_tokenize(example["response"]))]
+        for j, sentence in enumerate(sentences):
+            if j != len(sentences) - 1 and sentences[j + 1]['span'][0] != sentence['span'][1]:
+                sentence['span'] = (sentence['span'][0], sentences[j + 1]['span'][0])
         if remove_fuzzy:
             filtered_sentences = fuzzy_remove_duplicates(sentences)
         else:
