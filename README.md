@@ -1,13 +1,13 @@
 
-# Lamini: The LLM engine for rapidly customizing models
+# Lamini: The LLM engine for rapidly customizing models 🦙
 [![License](https://img.shields.io/badge/License-CC%20By%204.0-green.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙
 
-Official repo for Lamini's data generator for generating instructions to train instruction-following LLMs. 
 
-All data and LLMs are under a CC-BY license that allows commercial use (all yours, you own it!)
+Official repo for Lamini's data generator for generating instructions to train instruction-following LLMs.
+
+All data and LLMs are under a CC-BY license that allows commercial use—all yours, you own it! 🦙🦙🦙
 
 What's here?
 - A [71K dataset of instructions](#data-release) used for finetuning your own instruction-following LLM (like ChatGPT, which was also trained to follow instructions).
