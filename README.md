@@ -16,7 +16,7 @@ What's here?
 
 See our [blogpost](https://lamini.ai/blog) for layperson's terms of what's going on.
 
-<img src="assets/process.png" alt="Lamini Process Step by Step" height="400">
+<img src="assets/process.png" alt="Lamini Process Step by Step" width="700">
 
 
 ## Authentication to Lamini
