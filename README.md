@@ -1,20 +1,22 @@
 
-# Lamini: Create Your Own ChatGPT
+# Lamini: The LLM engine for rapidly customizing models
 [![License](https://img.shields.io/badge/License-CC%20By%204.0-green.svg)](/LICENSE.txt)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙🦙
 
-This is the repo for the Lamini project, which aims to build and share an instruction-following model with CC-BY license that allows commercial use. The repo contains:
+Official repo for Lamini's data generator for generating instructions to train instruction-following LLMs. 
 
-- The [71K data](#data-release) used for finetuning your own instruction-following LLM, a la ChatGPT.
-- The code for [generating the data](#run).
-- Fine-tuned Pythia models on Huggingface [weights](https://huggingface.co/lamini/instruct-tuned-2.8b) [playground](https://huggingface.co/spaces/lamini/instruct-playground).
+All data and LLMs are under a CC-BY license that allows commercial use (all yours, you own it!)
 
-See our [blogpost](https://lamini.ai/blog) for layperson's terms on what's going on.
+What's here?
+- A [71K dataset of instructions](#data-release) used for finetuning your own instruction-following LLM (like ChatGPT, which was also trained to follow instructions).
+- The code for the [data generator](#run), which only needs 100 datapoints to start generating 70k+ datapoints. You can customize the original 100+ datapoints to your own domain, to focus the data generator on that domain.
+- Open-source fine-tuned LLMs that follow instructions, fine-tuned using a base Pythia model with the Lamini engine: [[weights](https://huggingface.co/lamini/instruct-tuned-2.8b)] [[playground](https://huggingface.co/spaces/lamini/instruct-playground)].
 
-![Lamini Process Step by Step](assets/process.png "Lamini Process Step by Step")
+See our [blogpost](https://lamini.ai/blog) for layperson's terms of what's going on.
 
-🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫🦙🐪🦙🐫
+<img src="assets/process.png" alt="Lamini Process Step by Step" height="400">
 
 
 ## Authentication to Lamini
