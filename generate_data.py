@@ -34,7 +34,7 @@ def main():
 
     total_examples = int(arguments["count"])
     batch_size = int(arguments["batch_size"])
-    add_response_data = int(arguments["response_data"])
+    add_response_data = bool(arguments["response_data"])
 
     for count in range(0, total_examples, batch_size):
         if count + batch_size > total_examples:
