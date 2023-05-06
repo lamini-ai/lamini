@@ -109,7 +109,7 @@ In `generate_data.py`(./generate_data.py), you can just run `generate_questions`
 In `generate_data.py`(./generate_data.py), you can just use the function `make_pairs` to create the question-response pairs. This is a common use case step to run this stage separately, e.g. after human review of the generated questions, or if there was an error at this step last time.
 
 ### I want to generate more than 100 instructions
-Change the count flag `-c` for the number question-repsonse pairs to generate in total. The default is set to 100.
+Change the count flag `-c` for the number of question-repsonse pairs to generate in total. The default is set to 100.
 
 ## Cleaning
 
@@ -121,7 +121,7 @@ In the repository, run the `remove_duplicates.py` to remove duplicate questions 
 python3 remove_duplicates.py
 ```
 
-Run the program, to run a basic cleaning job on your data 🧼🧼🧼
+Run the program, to perform a basic cleaning job on your data 🧼🧼🧼
 
 
 In the repository, run the `remove_duplicates_completion.py` to remove responses where the model repeats itself from data/dataset.jsonl
@@ -130,9 +130,9 @@ In the repository, run the `remove_duplicates_completion.py` to remove responses
 python3 remove_duplicates_completion.py
 ```
 
-Run the program, to run a more extensive cleaning job on your data 🛁🛁🛁
+Run the program, to perform a more extensive cleaning job on your data 🛁🛁🛁
 
-These are examples.  Consider using human filtering or writing additional post processing programs to further cleand and improve your data.  Your fine-tuned models will thank you!
+These are examples.  Consider using human filtering or writing additional post processing programs to further clean and improve your data.  Your fine-tuned models will thank you!
 
 
 ## Data Release
