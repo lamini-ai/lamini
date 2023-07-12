@@ -21,7 +21,7 @@ What's here?
 
 See our [blog](https://lamini.ai/blog) for layperson's terms of what's going on. 
 
-Train with ease, by walking through the [Colab notebook](https://github.com/powerml/Lamini-finetune).
+Train with ease, by walking through the [Colab notebook](https://colab.research.google.com/drive/1QMeGzR9FnhNJJFmcHtm9RhFP3vrwIkFn?usp=sharing).
 
 This is an example of a tiny LLM performing basic finetuning. If, instead, you're thinking "I'm ready for the real deal 💪", if you want to build larger LLMs, run this live in production, host this on your own infrastructure (e.g. VPC or on premise), or other enterprise features, [please contact us](https://www.lamini.ai/contact).
 
