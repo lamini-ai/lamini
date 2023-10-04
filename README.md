@@ -173,6 +173,9 @@ To use different models for finetuning, you can pass in model_name parameter to 
   model = QuestionAnswerModel(model_name="YOUR_MODEL_NAME")
 ```
 Currently the free tier version supports limited models: 
+- meta-llama/Llama-2-7b-hf
+- meta-llama/Llama-2-7b-chat-hf
+- meta-llama/Llama-2-13b-chat-hf
 - hf-internal-testing/tiny-random-gpt2
 - EleutherAI/pythia-70m 
 - EleutherAI/pythia-70m-deduped 
