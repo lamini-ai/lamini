@@ -1,3 +1,0 @@
-lamini
-jsonlines
-pandas
