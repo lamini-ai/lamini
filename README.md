@@ -145,7 +145,7 @@ llm(
 </details>
 
 
-### Training
+## Training (ft. finetuning)
 
 When running inference, with prompt-engineering and RAG, is not enough for your LLM, you can train it. This is harder but will result in better performance, better leverage of your data, and increased knowledge and reasoning capabilities.
 
