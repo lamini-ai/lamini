@@ -33,6 +33,9 @@ class LlamaV2Runner(BaseRunner):
     def format_prompt_template(
         self, prompt: Union[str, List[str]], system_prompt: str = None
     ):
+        if self.prompt_template is None:
+            return prompt
+
         return self.prompt_template.format(
             system=system_prompt or self.system_prompt, user=prompt
         )
