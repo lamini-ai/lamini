@@ -18,19 +18,21 @@ export LAMINI_API_KEY="<YOUR-LAMINI-API-KEY>"
 
 Next, install the Python library.
 
-  ```python
-  pip install --upgrade lamini
-  ```
+```python
+pip install --upgrade lamini
+```
 
-  Run an LLM with a few lines of code.
-  ```python
-  import lamini
+Run an LLM with a few lines of code.
 
-  lamini.api_key = "<YOUR-LAMINI-API-KEY>" # or set as environment variable above
-  
-  llm = lamini.LlamaV2Runner()
-  print(llm("How are you?"))
-  ```
+```python
+import lamini
+
+lamini.api_key = "<YOUR-LAMINI-API-KEY>" # or set as environment variable above
+
+llm = lamini.LlamaV2Runner()
+print(llm.call("How are you?"))
+```
+
   <details>
   <summary>Expected Output</summary>
 
@@ -38,8 +40,7 @@ Next, install the Python library.
 
   </details>
 
-  That's it! 🎉
-
+That's it! 🎉
 
 More details in [our docs](https://lamini-ai.github.io/).
 
@@ -57,12 +58,14 @@ Customize inference in many ways:
 You'll breeze through some of these here. You can step through all of these in the [Inference Quick Tour](https://lamini-ai.github.io/inference/quick_tour.md).
 
 Prompt-engineer the system prompt in `LlamaV2Runner`.
+
 ```python hl_lines="3"
 from lamini import LlamaV2Runner
 
 pirate_llm = LlamaV2Runner(system_prompt="You are a pirate. Say arg matey!")
-print(pirate_llm("How are you?"))
+print(pirate_llm.call("How are you?"))
 ```
+
 <details>
 <summary>Expected Output</summary>
     ```
@@ -71,7 +74,7 @@ print(pirate_llm("How are you?"))
 </details>
 
 Definitely check out the expected output here. Because now it's a pirate :)
-    
+
 You can also add multiple outputs and multiple output types in one call. The output is a JSON schema that is strictly enforced.
 
 In order to do this in Python, you have to drop a to lower-level. The [`Lamini` class](lamini_python_class/__init__.md) is the base class for all runners, including the `LlamaV2Runner`. `Lamini` wraps our [REST API endpoint](rest_api/completions.md).
@@ -81,9 +84,9 @@ In order to do this in Python, you have to drop a to lower-level. The [`Lamini` 
 ```python hl_lines="4-7"
 from lamini import Lamini
 
-llm = Lamini(id="my-llm-id", model_name="meta-llama/Llama-2-7b-chat-hf")
+llm = Lamini(model_name="meta-llama/Llama-2-7b-chat-hf")
 llm(
-    {"question": "How old are you?"},
+    "How old are you?",
     output_type={"age": "int", "units": "str"}
 )
 ```
@@ -107,9 +110,9 @@ You can send up to 10,000 requests per call - on the Pro and Organization tiers.
 ```python hl_lines="2-6"
 llm(
     [
-        {"input": "How old are you?"},
-        {"input": "What is the meaning of life?"},
-        {"input": "What is the hottest day of the year?"},
+        "How old are you?",
+        "What is the meaning of life?",
+        "What is the hottest day of the year?",
     ],
     output_type={"response": "str", "explanation": "str"}
 )
@@ -135,17 +138,15 @@ llm(
     ```
 </details>
 
-
 ## Training (ft. finetuning)
 
 When running inference, with prompt-engineering and RAG, is not enough for your LLM, you can train it. This is harder but will result in better performance, better leverage of your data, and increased knowledge and reasoning capabilities.
 
 There are many ways to train your LLM. We'll cover the most common ones here:
 
-* Basic training: build your own LLM for specific domain knowledge or task with finetuning, domain adaptation, and more
-* Better training: customize your training call and evaluate your LLM
-* Bigger training: pretrain your LLM on a large dataset, e.g. Wikipedia, to improve its general knowledge
-
+- Basic training: build your own LLM for specific domain knowledge or task with finetuning, domain adaptation, and more
+- Better training: customize your training call and evaluate your LLM
+- Bigger training: pretrain your LLM on a large dataset, e.g. Wikipedia, to improve its general knowledge
 
 For the "Bigger training" section, see the [Training Quick Tour](https://lamini-ai.github.io/training/quick_tour.md).
 
@@ -244,7 +245,7 @@ llm.evaluate()
 After training, `llm` will use the finetuned model for inference.
 
 ```python
-llm("What's your favorite animal?")
+llm.call("What's your favorite animal?")
 ```
 
 <br><br>
