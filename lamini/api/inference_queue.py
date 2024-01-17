@@ -1,3 +1,6 @@
+import concurrent
+import json
+import os
 import logging
 import lamini
 from concurrent.futures import ThreadPoolExecutor
@@ -18,35 +21,94 @@ class InferenceQueue:
         self.api_prefix = self.api_url + "/v1/"
         self.thread_pool = self.create_thread_pool()
 
-    def submit(self, request):
+    def submit(self, request, local_cache_file):
         # Break the request into batches
         batches = self.form_batches(request)
 
         results = []
+        exceptions = []
 
         logger.info(
             f"Launching {len(batches)} batches onto the thread pool of size {self.get_max_workers()}"
         )
 
+        if local_cache_file:
+            local_cache = self.read_local_cache(local_cache_file)
+
         for batch in batches:
             # Submit each batch to the thread pool
-            results.append(
-                self.thread_pool.submit(
-                    process_batch, self.api_key, self.api_prefix, batch
+
+            batch_k = str(batch)
+            if local_cache_file and batch_k in local_cache:
+                results.append(local_cache[batch_k])
+            else:
+                results.append(
+                    self.thread_pool.submit(
+                        process_batch, self.api_key, self.api_prefix, batch
+                    )
                 )
-            )
 
         # Wait for all the results to come back
-        for result in results:
-            result.result()
+        for i, result in enumerate(results):
+            if local_cache_file:
+                if not isinstance(result, concurrent.futures._base.Future):
+                    continue
+
+                r = None
+                try:
+                    r = result.result()
+                except Exception as e:
+                    exceptions.append(e)
+
+                if r:
+                    self.append_local_cache(local_cache_file, batches[i], r)
+            else:
+                result.result()
+
+        if local_cache_file:
+            if len(exceptions) > 0:
+                raise exceptions[0]
 
         # Combine the results and return them
         return self.combine_results(results)
 
+    def read_local_cache(self, local_cache_file):
+        if not os.path.exists(local_cache_file):
+            return {}
+        
+        with open(local_cache_file, 'r') as file:
+            content = file.read()
+
+        content = content.strip()
+        if content.strip() == '':
+            return {}
+
+        if content[-1] != ',':
+            raise Exception(f"The last char in {local_cache_file} should be ','")
+
+        content = '{' + content[:-1] + '}'
+        cache = json.loads(content)
+
+        if not isinstance(cache, dict):
+            raise Exception(f"{local_cache_file} cannot be loaded as dict")
+
+        return cache
+    
+    def append_local_cache(self, local_cache_file, batch, res):
+        batch_k = json.dumps(str(batch))
+        batch_v = json.dumps(res)
+        cache_line = f"{batch_k}: {batch_v},\n\n"
+
+        with open(local_cache_file, 'a') as file:
+            file.write(cache_line)
+
     def combine_results(self, results):
         combined_results = []
         for result_future in results:
-            result = result_future.result()
+            if isinstance(result_future, concurrent.futures._base.Future):            
+                result = result_future.result()
+            else:
+                result = result_future
             logger.info(f"inference result: {result}")
             if isinstance(result, list):
                 combined_results.extend(result)
@@ -63,14 +125,10 @@ class InferenceQueue:
         return thread_pool
 
     def get_max_workers(self):
-        # url = self.api_prefix + "system/gpu_count"
-        gpu_count = 12  # make_web_request(self.key, url, "get", {})["gpu_count"]
-
-        return gpu_count
+        return lamini.max_workers
 
     def form_batches(self, request):
         batch_size = self.get_batch_size()
-
         batches = []
 
         if isinstance(request["prompt"], str):
@@ -86,13 +144,12 @@ class InferenceQueue:
             raise RateLimitError(
                 f"Too many requests, {len(request['prompt'])} >"
                 f" {self.get_max_batch_count() * self.get_batch_size()} (max)",
-                "RateLimitError",
             )
 
         return batches
 
     def get_batch_size(self):
-        return 10
+        return lamini.batch_size
 
     def get_max_batch_count(self):
         return 512

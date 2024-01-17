@@ -26,9 +26,6 @@ def get_config(dictionary={}):
         home_powerml_config(),
     )
 
-    print("LAMINI CONFIGURATION")
-    print(new_config)
-
     return new_config
 
 

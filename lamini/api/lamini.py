@@ -9,9 +9,9 @@ from lamini.api.utils.upload_client import (
     upload_to_local,
     get_dataset_name,
 )
-import json
+import jsonlines
 import os
-
+import pandas as pd
 
 class Lamini:
     def __init__(
@@ -19,6 +19,9 @@ class Lamini:
         model_name: str,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None,
+        max_retries: Optional[int] = 0,
+        base_delay: Optional[int] = 10,
+        local_cache_file: Optional[str] = None,
         config: dict = {},
     ):
         self.config = get_config(config)
@@ -26,6 +29,9 @@ class Lamini:
         self.inference_queue = InferenceQueue(api_key, api_url, config=config)
         self.trainer = Train(api_key, api_url, config=config)
         self.upload_file_path = None
+        self.max_retries = max_retries
+        self.base_delay = base_delay
+        self.local_cache_file = local_cache_file
         self.model_config = self.config.get("model_config", None)
 
     def generate(
@@ -43,7 +49,23 @@ class Lamini:
             max_tokens=max_tokens,
             stop_tokens=stop_tokens,
         )
-        result = self.inference_queue.submit(req_data)
+        retries = 0
+
+        while retries <= self.max_retries:
+            try:
+                result = self.inference_queue.submit(req_data, self.local_cache_file)
+                break
+            except Exception as e:
+                print(f"Inference exception: {e}")
+                delay = self.base_delay * 2 ** retries
+                retries += 1
+                if retries > self.max_retries:
+                    if self.max_retries > 0:
+                        print(f"Max retries {self.max_retries} reached")
+                    raise Exception(e)
+                print(f"Retrying #{retries} in {delay} seconds...")
+                time.sleep(delay)
+
         if isinstance(prompt, str) and len(result) == 1:
             if output_type is None:
                 return result[0]["output"]
@@ -51,13 +73,13 @@ class Lamini:
                 return result[0]
         return result
 
-    def upload_data(self, data_pairs, blob_dir_name="default"):
-        if len(data_pairs) == 0:
+    def upload_data(self, data, blob_dir_name="default"):
+        if len(data) == 0:
             raise ValueError("Data pairs cannot be empty.")
-        if len(data_pairs) > 1e+6:
+        if len(data) > 1e+6:
             raise ValueError("Data pairs cannot be more than 1 million.")
 
-        dataset_id = get_dataset_name(data_pairs)
+        dataset_id = get_dataset_name(data)
         output = self.trainer.upload_data(dataset_id, blob_dir_name)
         upload_base_path, dataset_location = (
             output["upload_base_path"],
@@ -67,25 +89,60 @@ class Lamini:
 
         try:
             if upload_base_path == "azure":
-                upload_to_blob(data_pairs, dataset_location)
+                upload_to_blob(data, dataset_location)
                 print("Data pairs uploaded to blob.")
             else:
-                upload_to_local(data_pairs, dataset_location)
+                upload_to_local(data, dataset_location)
                 print("Data pairs uploaded.")
 
         except Exception as e:
             print(f"Error uploading data pairs: {e}")
             raise e
 
-    def upload_file(self, file_path, blob_dir_name="default"):
-        if os.path.getsize(file_path) > 1e7:
+    def upload_file(self, file_path, input_key: str = "input", output_key: str = "output"):
+        if os.path.getsize(file_path) > 2e+8:
+            raise Exception("File size is too large, please upload file less than 200MB")
+
+        # Convert file records to appropriate format before uploading file
+        items = []
+        if file_path.endswith(".jsonl") or file_path.endswith(".jsonlines"):
+            with open(file_path) as dataset_file:
+                reader = jsonlines.Reader(dataset_file)
+                data = list(reader)
+
+                for row in data:
+                    items.append(
+                        {
+                            "input": row[input_key],
+                            "output": row[output_key] if output_key in row else ""
+                        })
+
+        elif file_path.endswith(".csv"):
+            df = pd.read_csv(file_path).fillna("")
+            data_keys = df.columns
+            if input_key not in data_keys:
+                raise ValueError(
+                    f"File must have input_key={input_key} as a column (and optionally output_key={output_key}). You "
+                    "can pass in different input_key and output_keys."
+                )
+
+            try:
+                for _, row in df.iterrows():
+                    items.append(
+                        {
+                            "input": row[input_key],
+                            "output": row[output_key] if output_key in row else ""
+                        })
+            except KeyError:
+                raise ValueError("Each object must have 'input' and 'output' as keys")
+
+        else:
             raise Exception(
-                "File size is too large, please upload a file less than 10MB."
+                "Upload of only csv and jsonlines file supported at the moment."
             )
+
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.loads(f.read())
-            self.upload_data(data, blob_dir_name)
+            self.upload_data(items)
         except Exception as e:
             print(f"Error reading data file: {e}")
             raise e
@@ -140,7 +197,7 @@ class Lamini:
                 print(f"Job failed: {status}")
                 return status
 
-            while status["status"] not in ("COMPLETED", "FAILED", "CANCELLED"):
+            while status["status"] not in ("COMPLETED", "PARTIALLY COMPLETED", "FAILED", "CANCELLED"):
                 if kwargs.get("verbose", False):
                     print(f"job not done. waiting... {status}")
                 time.sleep(30)

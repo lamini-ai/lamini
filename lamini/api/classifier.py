@@ -1,3 +1,4 @@
+import time
 import requests
 import lamini
 from typing import List, Union
@@ -13,18 +14,47 @@ class Classifier:
         self.config = get_config(config)
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
-        self.api_prefix = self.api_url + "/v1/classifier/"
+        self.api_prefix = self.api_url + "/v1/classifier"
 
-    def generate(self, prompt: Union[str, List[str]]):
+    def classify(
+        self,
+        prompt: Union[str, List[str]],
+        top_n: int = None,
+        threshold: float = None,
+        metadata: bool = None,
+    ):
         if self.model_id is None:
             raise Exception(
-                "model_id must be set in order to generate. Upload a model or set an existing model_id"
+                "model_id must be set in order to classify. Upload a model or set an existing model_id"
+            )
+        params = {"prompt": prompt}
+        if top_n:
+            params["top_n"] = top_n
+        if threshold:
+            params["threshold"] = threshold
+        if metadata:
+            params["metadata"] = metadata
+        resp = make_web_request(
+            self.api_key,
+            self.api_prefix + f"/{self.model_id}/classification",
+            "post",
+            params,
+        )
+        return resp["classification"]
+
+    def predict(self, prompt: Union[str, List[str]]):
+        if self.model_id is None:
+            raise Exception(
+                "model_id must be set in order to classify. Upload a model or set an existing model_id"
             )
         params = {"prompt": prompt}
         resp = make_web_request(
-            self.api_key, self.api_prefix + f"{self.model_id}", "post", params
+            self.api_key,
+            self.api_prefix + f"/{self.model_id}/prediction",
+            "post",
+            params,
         )
-        return resp["class"]
+        return resp["prediction"]
 
     def upload(self, file_path: str):
         files = {"file": open(file_path, "rb")}

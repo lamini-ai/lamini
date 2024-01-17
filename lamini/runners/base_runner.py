@@ -7,12 +7,14 @@ from lamini.api.lamini import Lamini
 
 class BaseRunner:
     def __init__(
-        self, model_name, system_prompt, prompt_template, api_key, api_url, config
+        self, model_name, system_prompt, prompt_template, api_key, api_url, config, local_cache_file,
+            max_retries, base_delay,
     ):
         self.config = config
         self.model_name = model_name
         self.lamini_api = Lamini(
-            model_name=model_name, api_key=api_key, api_url=api_url, config=self.config
+            model_name=model_name, api_key=api_key, api_url=api_url, config=self.config,
+            local_cache_file=local_cache_file, max_retries = max_retries, base_delay = base_delay,
         )
         self.prompt_template = prompt_template
         self.system_prompt = system_prompt
@@ -95,7 +97,11 @@ class BaseRunner:
             raise ValueError(
                 f"Each object must have input_key={input_key}, and optionally output_key={output_key}, as keys"
             )
-        self.data.extend(input_output_objects)
+
+        if len(input_output_objects) > 3000:
+            self.lamini_api.upload_data(input_output_objects)
+        else:
+            self.data.extend(input_output_objects)
         if verbose:
             if len(input_output_objects) > 0:
                 print("Sample added data: %s" % str(input_output_objects[0]))
@@ -140,16 +146,19 @@ class BaseRunner:
         try:
             for _, row in df.iterrows():
                 input_output_objects.append(
-                    [
-                        {"input": self.format_prompt_template(row[input_key])},
-                        {"output": row[output_key] if output_key in row else ""},
-                    ]
+                    {
+                        "input": self.format_prompt_template(row[input_key]),
+                        "output": row[output_key] if output_key in row else ""
+                    }
                 )
         except KeyError:
             raise ValueError(
                 f"Each object must have '{input_key}' and '{output_key}' as keys"
             )
-        self.data.extend(input_output_objects)
+        if len(input_output_objects) > 3000:
+            self.lamini_api.upload_data(input_output_objects)
+        else:
+            self.data.extend(input_output_objects)
 
         if verbose:
             if len(input_output_objects) > 0:
@@ -174,59 +183,6 @@ class BaseRunner:
         self.load_data_from_dataframe(
             df, verbose=verbose, input_key=input_key, output_key=output_key
         )
-
-    def upload_file(
-        self,
-        file_path,
-        input_key: str = "input",
-        output_key: str = "output",
-    ):
-        if os.path.getsize(file_path) > 1e7:
-            raise Exception("File size is too large, please upload file less than 10MB")
-
-        # Convert file records to appropriate format before uploading file
-        items = []
-        if file_path.endswith(".jsonl") or file_path.endswith(".jsonlines"):
-            with open(file_path) as dataset_file:
-                reader = jsonlines.Reader(dataset_file)
-                data = list(reader)
-
-                for row in data:
-                    item = [
-                        [
-                            {"input": self.format_prompt_template(row[input_key])},
-                            {"output": row[output_key] if output_key in row else ""},
-                        ]
-                    ]
-                    items.append(item)
-
-        elif file_path.endswith(".csv"):
-            df = pd.read_csv(file_path).fillna("")
-            data_keys = df.columns
-            if input_key not in data_keys:
-                raise ValueError(
-                    f"File must have input_key={input_key} as a column (and optionally output_key={output_key}). You "
-                    "can pass in different input_key and output_keys."
-                )
-
-            try:
-                for _, row in df.iterrows():
-                    item = [
-                        [
-                            {"input": self.format_prompt_template(row[input_key])},
-                            {"output": row[output_key] if output_key in row else ""},
-                        ]
-                    ]
-                    items.append(item)
-            except KeyError:
-                raise ValueError("Each object must have 'input' and 'output' as keys")
-
-        else:
-            raise Exception(
-                "Upload of only csv and jsonlines file supported at the moment."
-            )
-
-        self.lamini_api.upload_data(items)
 
     def clear_data(self):
         """Clear the data from the LLM"""

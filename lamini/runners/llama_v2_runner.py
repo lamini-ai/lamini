@@ -20,6 +20,9 @@ class LlamaV2Runner(BaseRunner):
         api_key=None,
         api_url=None,
         config={},
+        local_cache_file=None,
+        max_retries=0,
+        base_delay=10,
     ):
         super().__init__(
             config=config,
@@ -28,6 +31,9 @@ class LlamaV2Runner(BaseRunner):
             prompt_template=prompt_template,
             api_key=api_key,
             api_url=api_url,
+            local_cache_file=local_cache_file,
+            max_retries=max_retries,
+            base_delay=base_delay,
         )
 
     def format_prompt_template(
@@ -96,14 +102,3 @@ class LlamaV2Runner(BaseRunner):
             output_key,
         )
 
-    def upload_file(
-        self,
-        file_path,
-        input_key: str = "user",
-        output_key: str = "output",
-    ):
-        super().upload_file(
-            file_path,
-            input_key,
-            output_key,
-        )

@@ -224,7 +224,6 @@ class LaminiClassifier:
 
         embed = Embedding(self.config)
         embeddings = embed.generate(examples)
-
         return [embedding[0] for embedding in embeddings]
 
     def predict_proba(self, text):
@@ -286,12 +285,16 @@ class LaminiClassifier:
     def loads(data):
         return pickle.loads(data)
 
-    def save_hosted(self, filename):
-        obj = SavedLaminiClassifier(self.logistic_regression, self.class_names_to_ids)
+    def save(self, filename):
+        obj = SavedLaminiClassifier(
+            self.logistic_regression,
+            self.class_names_to_ids,
+            self.class_ids_to_metadata,
+        )
         with open(filename, "wb") as f:
             pickle.dump(obj, f)
 
-    def save(self, filename):
+    def save_local(self, filename):
         with open(filename, "wb") as f:
             pickle.dump(self, f)
 
@@ -421,10 +424,14 @@ class LaminiClassifier:
 
 class SavedLaminiClassifier:
     def __init__(
-        self, logistic_regression: LogisticRegression, class_names_to_ids: dict
+        self,
+        logistic_regression: LogisticRegression,
+        class_names_to_ids: dict,
+        class_ids_to_metadata: dict,
     ):
         self.logistic_regression = logistic_regression
         self.class_names_to_ids = class_names_to_ids
+        self.class_ids_to_metadata = class_ids_to_metadata
 
     @staticmethod
     def loads(data):
@@ -455,7 +462,7 @@ class DefaultExampleGenerator:
         runner = LlamaV2Runner(config=self.config, model_name=self.model_name)
 
         results = runner(
-            inputs=prompt_batch,
+            prompt=prompt_batch,
             system_prompt=system_prompt,
             output_type={
                 "example_1": "str",
@@ -533,11 +540,11 @@ class DefaultExampleGenerator:
         all_examples = []
         for result in results:
             all_examples += [
-                result.example_1,
-                result.example_2,
-                result.example_3,
-                result.example_4,
-                result.example_5,
+                result["example_1"],
+                result["example_2"],
+                result["example_3"],
+                result["example_4"],
+                result["example_5"],
             ]
 
         return all_examples
@@ -558,7 +565,7 @@ class DefaultExampleModifier:
         runner = LlamaV2Runner(config=self.config, model_name=self.model_name)
 
         results = runner(
-            inputs=prompts,
+            prompt=prompts,
             system_prompt=system_prompt,
             output_type={
                 "example_1": "str",
@@ -628,11 +635,11 @@ class DefaultExampleModifier:
         all_examples = []
         for result in results:
             all_examples += [
-                result.example_1,
-                result.example_2,
-                result.example_3,
-                result.example_4,
-                result.example_5,
+                result["example_1"],
+                result["example_2"],
+                result["example_3"],
+                result["example_4"],
+                result["example_5"],
             ]
 
         return all_examples
@@ -649,7 +656,7 @@ class DefaultExampleExpander:
 
         prompts, system_prompt = self.get_prompt_batch(example_batch)
 
-        results = runner(inputs=prompts, system_prompt=system_prompt)
+        results = runner(prompt=prompts, system_prompt=system_prompt)
 
         for result in results:
             logger.debug("+++++++ Default Example Expander Result ++++++++")
