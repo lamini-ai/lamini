@@ -1,5 +1,6 @@
-import config
 import os
+
+import config
 
 global_config = None
 

@@ -1,3 +1,6 @@
+# Turn of isort, because alphabetic order for the following imports causes circular dependency issues
+
+# isort: off
 from lamini.error import error
 
 from lamini.runners.llama_v2_runner import LlamaV2Runner
@@ -18,5 +21,5 @@ Please set it as an environment variable LAMINI_API_KEY, set it as lamini.api_ke
 Find your LAMINI_API_KEY at https://app.lamini.ai/account"""
 
 
-max_workers = os.environ.get("LAMINI_MAX_WORKERS", 27)
-batch_size = os.environ.get("LAMINI_BATCH_SIZE", 20)
+max_workers = os.environ.get("LAMINI_MAX_WORKERS", 80)
+batch_size = os.environ.get("LAMINI_BATCH_SIZE", 5)

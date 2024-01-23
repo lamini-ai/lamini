@@ -1,17 +1,19 @@
+import os
 import time
-
 from typing import List, Optional, Union
+
+import jsonlines
+import pandas as pd
+from lamini.api.async_inference_queue import AsyncInferenceQueue
 from lamini.api.inference_queue import InferenceQueue
-from lamini.api.train import Train
 from lamini.api.lamini_config import get_config
+from lamini.api.train import Train
 from lamini.api.utils.upload_client import (
+    get_dataset_name,
     upload_to_blob,
     upload_to_local,
-    get_dataset_name,
 )
-import jsonlines
-import os
-import pandas as pd
+
 
 class Lamini:
     def __init__(
@@ -27,6 +29,10 @@ class Lamini:
         self.config = get_config(config)
         self.model_name = model_name
         self.inference_queue = InferenceQueue(api_key, api_url, config=config)
+        self.async_inference_queue = AsyncInferenceQueue(
+            api_key, api_url, config=config
+        )
+
         self.trainer = Train(api_key, api_url, config=config)
         self.upload_file_path = None
         self.max_retries = max_retries
@@ -57,7 +63,7 @@ class Lamini:
                 break
             except Exception as e:
                 print(f"Inference exception: {e}")
-                delay = self.base_delay * 2 ** retries
+                delay = self.base_delay * 2**retries
                 retries += 1
                 if retries > self.max_retries:
                     if self.max_retries > 0:
@@ -73,11 +79,52 @@ class Lamini:
                 return result[0]
         return result
 
+    async def async_generate(
+        self,
+        prompt: Union[str, List[str]],
+        model_name: Optional[str] = None,
+        output_type: Optional[dict] = None,
+        max_tokens: Optional[int] = None,
+        stop_tokens: Optional[List[str]] = None,
+    ):
+        req_data = self.make_llm_req_map(
+            prompt=prompt,
+            model_name=model_name or self.model_name,
+            output_type=output_type,
+            max_tokens=max_tokens,
+            stop_tokens=stop_tokens,
+        )
+        retries = 0
+
+        while retries <= self.max_retries:
+            try:
+                result = await self.async_inference_queue.submit(
+                    req_data, self.local_cache_file
+                )
+                break
+            except Exception as e:
+                print(f"Inference exception: {e}")
+                delay = self.base_delay * 2**retries
+                retries += 1
+                if retries > self.max_retries:
+                    if self.max_retries > 0:
+                        print(f"Max retries {self.max_retries} reached")
+                    raise e
+                print(f"Retrying #{retries} in {delay} seconds...")
+                time.sleep(delay)
+
+        if isinstance(prompt, str) and len(result) == 1:
+            if output_type is None:
+                return result[0]["output"]
+            else:
+                return result[0]
+        return result
+
     def upload_data(self, data, blob_dir_name="default"):
         if len(data) == 0:
             raise ValueError("Data pairs cannot be empty.")
-        if len(data) > 1e+6:
-            raise ValueError("Data pairs cannot be more than 1 million.")
+        # if len(data) > 1e6:
+        #     raise ValueError("Data pairs cannot be more than 1 million.")
 
         dataset_id = get_dataset_name(data)
         output = self.trainer.upload_data(dataset_id, blob_dir_name)
@@ -99,9 +146,13 @@ class Lamini:
             print(f"Error uploading data pairs: {e}")
             raise e
 
-    def upload_file(self, file_path, input_key: str = "input", output_key: str = "output"):
-        if os.path.getsize(file_path) > 2e+8:
-            raise Exception("File size is too large, please upload file less than 200MB")
+    def upload_file(
+        self, file_path, input_key: str = "input", output_key: str = "output"
+    ):
+        if os.path.getsize(file_path) > 2e8:
+            raise Exception(
+                "File size is too large, please upload file less than 200MB"
+            )
 
         # Convert file records to appropriate format before uploading file
         items = []
@@ -114,8 +165,9 @@ class Lamini:
                     items.append(
                         {
                             "input": row[input_key],
-                            "output": row[output_key] if output_key in row else ""
-                        })
+                            "output": row[output_key] if output_key in row else "",
+                        }
+                    )
 
         elif file_path.endswith(".csv"):
             df = pd.read_csv(file_path).fillna("")
@@ -131,8 +183,9 @@ class Lamini:
                     items.append(
                         {
                             "input": row[input_key],
-                            "output": row[output_key] if output_key in row else ""
-                        })
+                            "output": row[output_key] if output_key in row else "",
+                        }
+                    )
             except KeyError:
                 raise ValueError("Each object must have 'input' and 'output' as keys")
 
@@ -197,7 +250,12 @@ class Lamini:
                 print(f"Job failed: {status}")
                 return status
 
-            while status["status"] not in ("COMPLETED", "PARTIALLY COMPLETED", "FAILED", "CANCELLED"):
+            while status["status"] not in (
+                "COMPLETED",
+                "PARTIALLY COMPLETED",
+                "FAILED",
+                "CANCELLED",
+            ):
                 if kwargs.get("verbose", False):
                     print(f"job not done. waiting... {status}")
                 time.sleep(30)

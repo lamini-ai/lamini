@@ -1,17 +1,16 @@
-import os
-import random
-import pickle
-import jsonlines
 import logging
-
+import os
+import pickle
+import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from itertools import chain
 from typing import List
+
+import jsonlines
 from lamini import LlamaV2Runner
 from lamini.api.embedding import Embedding
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from sklearn.linear_model import LogisticRegression
 from tqdm import tqdm
-from itertools import chain
-
 
 logger = logging.getLogger(__name__)
 

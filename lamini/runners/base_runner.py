@@ -1,20 +1,33 @@
+from typing import List, Optional, Union
+
 import jsonlines
 import pandas as pd
-import os
-from typing import List, Optional, Union
 from lamini.api.lamini import Lamini
 
 
 class BaseRunner:
     def __init__(
-        self, model_name, system_prompt, prompt_template, api_key, api_url, config, local_cache_file,
-            max_retries, base_delay,
+        self,
+        model_name,
+        system_prompt,
+        prompt_template,
+        api_key,
+        api_url,
+        config,
+        local_cache_file,
+        max_retries,
+        base_delay,
     ):
         self.config = config
         self.model_name = model_name
         self.lamini_api = Lamini(
-            model_name=model_name, api_key=api_key, api_url=api_url, config=self.config,
-            local_cache_file=local_cache_file, max_retries = max_retries, base_delay = base_delay,
+            model_name=model_name,
+            api_key=api_key,
+            api_url=api_url,
+            config=self.config,
+            local_cache_file=local_cache_file,
+            max_retries=max_retries,
+            base_delay=base_delay,
         )
         self.prompt_template = prompt_template
         self.system_prompt = system_prompt
@@ -148,7 +161,7 @@ class BaseRunner:
                 input_output_objects.append(
                     {
                         "input": self.format_prompt_template(row[input_key]),
-                        "output": row[output_key] if output_key in row else ""
+                        "output": row[output_key] if output_key in row else "",
                     }
                 )
         except KeyError:
