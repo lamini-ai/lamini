@@ -1,6 +1,6 @@
-import pandas as pd
-
 from typing import List, Union
+
+import pandas as pd
 from lamini.runners.base_runner import BaseRunner
 
 DEFAULT_SYSTEM_PROMPT = """\
@@ -101,4 +101,3 @@ class LlamaV2Runner(BaseRunner):
             input_key,
             output_key,
         )
-

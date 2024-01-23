@@ -1,9 +1,9 @@
-from azure.storage.blob import BlobClient
-
-import json
 import hashlib
+import json
 import os
+
 import jsonlines
+from azure.storage.blob import BlobClient
 
 
 def upload_to_blob(data: str, sas_url: str):

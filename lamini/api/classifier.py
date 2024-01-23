@@ -1,9 +1,10 @@
 import time
-import requests
-import lamini
 from typing import List, Union
-from lamini.api.rest_requests import make_web_request
+
+import lamini
+import requests
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
+from lamini.api.rest_requests import make_web_request
 
 
 class Classifier:

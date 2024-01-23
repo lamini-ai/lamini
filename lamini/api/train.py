@@ -1,6 +1,7 @@
-import lamini
 import logging
 from typing import Optional
+
+import lamini
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 from lamini.api.rest_requests import make_web_request
 

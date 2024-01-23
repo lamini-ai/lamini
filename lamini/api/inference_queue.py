@@ -1,9 +1,14 @@
 import concurrent
+import datetime
 import json
-import os
 import logging
-import lamini
+import math
+import os
+import random
+import time
 from concurrent.futures import ThreadPoolExecutor
+
+import lamini
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 from lamini.api.rest_requests import make_web_request
 from lamini.error.error import RateLimitError
@@ -24,20 +29,16 @@ class InferenceQueue:
     def submit(self, request, local_cache_file):
         # Break the request into batches
         batches = self.form_batches(request)
-
         results = []
         exceptions = []
-
         logger.info(
             f"Launching {len(batches)} batches onto the thread pool of size {self.get_max_workers()}"
         )
-
         if local_cache_file:
             local_cache = self.read_local_cache(local_cache_file)
 
         for batch in batches:
             # Submit each batch to the thread pool
-
             batch_k = str(batch)
             if local_cache_file and batch_k in local_cache:
                 results.append(local_cache[batch_k])
@@ -68,44 +69,49 @@ class InferenceQueue:
         if local_cache_file:
             if len(exceptions) > 0:
                 raise exceptions[0]
-
         # Combine the results and return them
         return self.combine_results(results)
+
+    def create_thread_pool(self):
+        global thread_pool
+        if thread_pool is None:
+            thread_pool = ThreadPoolExecutor(max_workers=self.get_max_workers())
+        return thread_pool
 
     def read_local_cache(self, local_cache_file):
         if not os.path.exists(local_cache_file):
             return {}
-        
-        with open(local_cache_file, 'r') as file:
+
+        with open(local_cache_file, "r") as file:
             content = file.read()
 
         content = content.strip()
-        if content.strip() == '':
+        if content.strip() == "":
             return {}
 
-        if content[-1] != ',':
+        if content[-1] != ",":
             raise Exception(f"The last char in {local_cache_file} should be ','")
 
-        content = '{' + content[:-1] + '}'
+        content = "{" + content[:-1] + "}"
         cache = json.loads(content)
 
         if not isinstance(cache, dict):
             raise Exception(f"{local_cache_file} cannot be loaded as dict")
 
         return cache
-    
+
     def append_local_cache(self, local_cache_file, batch, res):
         batch_k = json.dumps(str(batch))
         batch_v = json.dumps(res)
         cache_line = f"{batch_k}: {batch_v},\n\n"
 
-        with open(local_cache_file, 'a') as file:
+        with open(local_cache_file, "a") as file:
             file.write(cache_line)
 
     def combine_results(self, results):
         combined_results = []
         for result_future in results:
-            if isinstance(result_future, concurrent.futures._base.Future):            
+            if isinstance(result_future, concurrent.futures._base.Future):
                 result = result_future.result()
             else:
                 result = result_future
@@ -116,13 +122,6 @@ class InferenceQueue:
                 combined_results.append(result)
 
         return combined_results
-
-    def create_thread_pool(self):
-        global thread_pool
-        if thread_pool is None:
-            thread_pool = ThreadPoolExecutor(max_workers=self.get_max_workers())
-
-        return thread_pool
 
     def get_max_workers(self):
         return lamini.max_workers
@@ -156,6 +155,14 @@ class InferenceQueue:
 
 
 def process_batch(key, api_prefix, batch):
+    logger.debug(f"processing batch of size {len(batch)}")
     url = api_prefix + "completions"
     result = make_web_request(key, url, "post", batch)
     return result
+
+
+def make_reservation(key, api_prefix, capacity: int):
+    url = api_prefix + "reservation"
+    reservation = make_web_request(key, url, "post", {"capacity": capacity})
+    logger.debug("Made reservation " + str(reservation))
+    return reservation
