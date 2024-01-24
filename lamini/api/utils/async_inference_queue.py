@@ -150,7 +150,7 @@ async def process_batch(args):
     if local_cache_file and result:
         append_local_cache(local_cache_file, batch_k, result)
     if callback:
-        callback(batch_k, result)
+        callback(batch, result)
     return result
 
 
