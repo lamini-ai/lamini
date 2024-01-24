@@ -1,18 +1,22 @@
+import logging
 import os
+import sys
 import time
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import jsonlines
 import pandas as pd
-from lamini.api.async_inference_queue import AsyncInferenceQueue
-from lamini.api.inference_queue import InferenceQueue
 from lamini.api.lamini_config import get_config
+from lamini.api.synchronize import sync
 from lamini.api.train import Train
+from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
 from lamini.api.utils.upload_client import (
     get_dataset_name,
     upload_to_blob,
     upload_to_local,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Lamini:
@@ -28,10 +32,19 @@ class Lamini:
     ):
         self.config = get_config(config)
         self.model_name = model_name
-        self.inference_queue = InferenceQueue(api_key, api_url, config=config)
-        self.async_inference_queue = AsyncInferenceQueue(
-            api_key, api_url, config=config
-        )
+        if sys.version_info[0] >= 3 and sys.version_info[1] >= 10:
+            logger.info("Using 3.10 InferenceQueue Interface")
+            from lamini.api.utils.async_inference_queue_3_10 import (
+                AsyncInferenceQueue as AsyncInferenceQueue310,
+            )
+
+            self.async_inference_queue = AsyncInferenceQueue310(
+                api_key, api_url, config=config
+            )
+        else:
+            self.async_inference_queue = AsyncInferenceQueue(
+                api_key, api_url, config=config
+            )
 
         self.trainer = Train(api_key, api_url, config=config)
         self.upload_file_path = None
@@ -47,37 +60,18 @@ class Lamini:
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         stop_tokens: Optional[List[str]] = None,
+        callback: Optional[Callable] = None,
     ):
-        req_data = self.make_llm_req_map(
-            prompt=prompt,
-            model_name=model_name or self.model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
-            stop_tokens=stop_tokens,
+        return sync(
+            self.async_generate(
+                prompt=prompt,
+                model_name=model_name,
+                output_type=output_type,
+                max_tokens=max_tokens,
+                stop_tokens=stop_tokens,
+                callback=callback,
+            )
         )
-        retries = 0
-
-        while retries <= self.max_retries:
-            try:
-                result = self.inference_queue.submit(req_data, self.local_cache_file)
-                break
-            except Exception as e:
-                print(f"Inference exception: {e}")
-                delay = self.base_delay * 2**retries
-                retries += 1
-                if retries > self.max_retries:
-                    if self.max_retries > 0:
-                        print(f"Max retries {self.max_retries} reached")
-                    raise Exception(e)
-                print(f"Retrying #{retries} in {delay} seconds...")
-                time.sleep(delay)
-
-        if isinstance(prompt, str) and len(result) == 1:
-            if output_type is None:
-                return result[0]["output"]
-            else:
-                return result[0]
-        return result
 
     async def async_generate(
         self,
@@ -86,6 +80,7 @@ class Lamini:
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         stop_tokens: Optional[List[str]] = None,
+        callback: Optional[Callable] = None,
     ):
         req_data = self.make_llm_req_map(
             prompt=prompt,
@@ -99,7 +94,7 @@ class Lamini:
         while retries <= self.max_retries:
             try:
                 result = await self.async_inference_queue.submit(
-                    req_data, self.local_cache_file
+                    req_data, self.local_cache_file, callback
                 )
                 break
             except Exception as e:
@@ -121,10 +116,9 @@ class Lamini:
         return result
 
     def upload_data(self, data, blob_dir_name="default"):
+        s = time.time()
         if len(data) == 0:
             raise ValueError("Data pairs cannot be empty.")
-        # if len(data) > 1e6:
-        #     raise ValueError("Data pairs cannot be more than 1 million.")
 
         dataset_id = get_dataset_name(data)
         output = self.trainer.upload_data(dataset_id, blob_dir_name)
@@ -133,6 +127,7 @@ class Lamini:
             output["dataset_location"],
         )
         self.upload_file_path = dataset_location
+        print(f"Got upload location.")
 
         try:
             if upload_base_path == "azure":
@@ -145,6 +140,8 @@ class Lamini:
         except Exception as e:
             print(f"Error uploading data pairs: {e}")
             raise e
+        e = time.time()
+        print(f"Time taken to upload data pairs: {e-s} seconds")
 
     def upload_file(
         self, file_path, input_key: str = "input", output_key: str = "output"
