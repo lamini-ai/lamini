@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lamini"
+version = "2.0.7"
+authors = [
+  { name="PowerML", email="info@powerml.co" },
+]
+description = "Build on large language models faster"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "lamini-configuration[yaml]",
+    "requests",
+    "tqdm",
+    "numpy",
+    "jsonlines",
+    "pandas",
+    "azure-storage-blob",
+    "scikit-learn",
+    "aiohttp",
+]
+
+[tool.setuptools]
+packages = [
+    "lamini",
+    "lamini.classify",
+    "lamini.error",
+    "lamini.api",
+    "lamini.api.utils",
+    "lamini.runners",
+    "llama",
+]
+
+[tool.autopep8]
+max_line_length = 127
+in-place = true
+recursive = true
+aggressive = 3
