@@ -53,9 +53,9 @@ Customize inference in many ways:
 - Change the output type, e.g. `str`, `int`, or `float`.
 - Output multiple values in structured JSON.
 - High-throughput inference, e.g. 10,000 requests per call.
-- Run simple applications like [RAG](applications/rag.md).
+- Run simple applications like [RAG](https://lamini-ai.github.io/applications/rag).
 
-You'll breeze through some of these here. You can step through all of these in the [Inference Quick Tour](https://lamini-ai.github.io/inference/quick_tour.md).
+You'll breeze through some of these here. You can step through all of these in the [Inference Quick Tour](https://lamini-ai.github.io/inference/quick_tour).
 
 Prompt-engineer the system prompt in `LlamaV2Runner`.
 
@@ -77,7 +77,7 @@ Definitely check out the expected output here. Because now it's a pirate :)
 
 You can also add multiple outputs and multiple output types in one call. The output is a JSON schema that is strictly enforced.
 
-In order to do this in Python, you have to drop a to lower-level. The [`Lamini` class](lamini_python_class/__init__.md) is the base class for all runners, including the `LlamaV2Runner`. `Lamini` wraps our [REST API endpoint](rest_api/completions.md).
+In order to do this in Python, you have to drop a to lower-level. The [`Lamini` class](https://lamini-ai.github.io/lamini_python_class/__init__) is the base class for all runners, including the `LlamaV2Runner`. `Lamini` wraps our [REST API endpoint](https://lamini-ai.github.io/rest_api/completions).
 
 `Lamini` expects an input dictionary, and a return dictionary for the output type. You can return multiple values, e.g. an int and a string here.
 
@@ -148,7 +148,7 @@ There are many ways to train your LLM. We'll cover the most common ones here:
 - Better training: customize your training call and evaluate your LLM
 - Bigger training: pretrain your LLM on a large dataset, e.g. Wikipedia, to improve its general knowledge
 
-For the "Bigger training" section, see the [Training Quick Tour](https://lamini-ai.github.io/training/quick_tour.md).
+For the "Bigger training" section, see the [Training Quick Tour](https://lamini-ai.github.io/training/quick_tour).
 
 First, get data and put it in the format that `LlamaV2Runner` expects, which includes the `system` prompt, the `user` query, and the expected `output` response.
 
