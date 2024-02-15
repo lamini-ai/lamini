@@ -15,8 +15,6 @@ class BaseRunner:
         api_url,
         config,
         local_cache_file,
-        max_retries,
-        base_delay,
     ):
         self.config = config
         self.model_name = model_name
@@ -26,8 +24,6 @@ class BaseRunner:
             api_url=api_url,
             config=self.config,
             local_cache_file=local_cache_file,
-            max_retries=max_retries,
-            base_delay=base_delay,
         )
         self.prompt_template = prompt_template
         self.system_prompt = system_prompt
@@ -134,8 +130,7 @@ class BaseRunner:
         """
         data = []
         with open(file_path) as dataset_file:
-            reader = jsonlines.Reader(dataset_file)
-            data = list(reader)
+            data = list(jsonlines.Reader(dataset_file))
         self.load_data(
             data, verbose=verbose, input_key=input_key, output_key=output_key
         )

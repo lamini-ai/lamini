@@ -93,11 +93,20 @@ class Train:
 
         return make_web_request(self.api_key, url, "get")
 
-    def upload_data(self, dataset_id, blob_dir_name="default"):
+    def create_dataset_location(self, dataset_id):
         url = self.api_prefix + "data"
         return make_web_request(
             self.api_key,
             url,
             "post",
-            {"dataset_id": dataset_id, "blob_dir_name": blob_dir_name},
+            {"dataset_id": dataset_id},
+        )
+
+    def get_existing_dataset(self, dataset_id):
+        url = self.api_prefix + "existing-data"
+        return make_web_request(
+            self.api_key,
+            url,
+            "post",
+            {"dataset_id": dataset_id},
         )

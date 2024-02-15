@@ -6,7 +6,7 @@ class LlamaError(Exception):
         super(LlamaError, self).__init__(message)
 
 
-class ModelNameError(LlamaError):
+class ModelNotFound(LlamaError):
     """The model name is invalid. Make sure it's a valid model in Huggingface or a finetuned model"""
 
 
@@ -24,6 +24,10 @@ class RateLimitError(LlamaError):
 
 class UserError(LlamaError):
     """The user has made an invalid request"""
+
+
+class APIUnprocessableContentError(LlamaError):
+    """Invalid request format. Consider upgrading lamini library version"""
 
 
 class UnavailableResourceError(LlamaError):
