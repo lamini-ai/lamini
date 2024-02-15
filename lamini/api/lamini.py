@@ -1,8 +1,9 @@
+import json
 import logging
 import os
 import sys
 import time
-from typing import Callable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import jsonlines
 import pandas as pd
@@ -10,11 +11,8 @@ from lamini.api.lamini_config import get_config
 from lamini.api.synchronize import sync
 from lamini.api.train import Train
 from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
-from lamini.api.utils.upload_client import (
-    get_dataset_name,
-    upload_to_blob,
-    upload_to_local,
-)
+from lamini.api.utils.completion import Completion
+from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +23,6 @@ class Lamini:
         model_name: str,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None,
-        max_retries: Optional[int] = 0,
-        base_delay: Optional[int] = 10,
         local_cache_file: Optional[str] = None,
         config: dict = {},
     ):
@@ -46,10 +42,10 @@ class Lamini:
                 api_key, api_url, config=config
             )
 
+        self.completion = Completion(api_key, api_url, config=config)
         self.trainer = Train(api_key, api_url, config=config)
         self.upload_file_path = None
-        self.max_retries = max_retries
-        self.base_delay = base_delay
+        self.upload_base_path = None
         self.local_cache_file = local_cache_file
         self.model_config = self.config.get("model_config", None)
 
@@ -59,16 +55,30 @@ class Lamini:
         model_name: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
-        stop_tokens: Optional[List[str]] = None,
+        max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
     ):
+        if isinstance(prompt, str):
+            req_data = self.make_llm_req_map(
+                prompt=prompt,
+                model_name=model_name or self.model_name,
+                output_type=output_type,
+                max_tokens=max_tokens,
+                max_new_tokens=max_new_tokens,
+            )
+            result = self.completion.generate(req_data)
+            if output_type is None:
+                result = result["output"]
+            return result
+
+        assert isinstance(prompt, list)
         return sync(
             self.async_generate(
                 prompt=prompt,
                 model_name=model_name,
                 output_type=output_type,
                 max_tokens=max_tokens,
-                stop_tokens=stop_tokens,
+                max_new_tokens=max_new_tokens,
                 callback=callback,
             )
         )
@@ -79,7 +89,7 @@ class Lamini:
         model_name: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
-        stop_tokens: Optional[List[str]] = None,
+        max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
     ):
         req_data = self.make_llm_req_map(
@@ -87,61 +97,59 @@ class Lamini:
             model_name=model_name or self.model_name,
             output_type=output_type,
             max_tokens=max_tokens,
-            stop_tokens=stop_tokens,
+            max_new_tokens=max_new_tokens,
         )
-        retries = 0
 
-        while retries <= self.max_retries:
-            try:
-                result = await self.async_inference_queue.submit(
-                    req_data, self.local_cache_file, callback
-                )
-                break
-            except Exception as e:
-                print(f"Inference exception: {e}")
-                delay = self.base_delay * 2**retries
-                retries += 1
-                if retries > self.max_retries:
-                    if self.max_retries > 0:
-                        print(f"Max retries {self.max_retries} reached")
-                    raise e
-                print(f"Retrying #{retries} in {delay} seconds...")
-                time.sleep(delay)
-
-        if isinstance(prompt, str) and len(result) == 1:
+        if isinstance(prompt, str):
+            result = await self.completion.async_generate(req_data)
             if output_type is None:
-                return result[0]["output"]
-            else:
-                return result[0]
-        return result
+                result = result["output"]
+            return result
 
-    def upload_data(self, data, blob_dir_name="default"):
-        s = time.time()
-        if len(data) == 0:
+        assert isinstance(prompt, list)
+        results = await self.async_inference_queue.submit(
+            req_data, self.local_cache_file, callback
+        )
+
+        if output_type is None:
+            results = [single_result["output"] for single_result in results]
+
+        return results
+
+    def upload_data(
+        self, data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+    ):
+        def get_data_str(d):
+            for item in d:
+                yield json.dumps(item) + "\n"
+
+        if not data:
             raise ValueError("Data pairs cannot be empty.")
+        # TODO: check if inside iter empty
 
-        dataset_id = get_dataset_name(data)
-        output = self.trainer.upload_data(dataset_id, blob_dir_name)
-        upload_base_path, dataset_location = (
+        dataset_id = get_dataset_name()
+        data_str = get_data_str(data)
+        output = self.trainer.create_dataset_location(dataset_id)
+        self.upload_base_path, dataset_location = (
             output["upload_base_path"],
             output["dataset_location"],
         )
         self.upload_file_path = dataset_location
-        print(f"Got upload location.")
+        print(
+            f"\nYour dataset id is: {dataset_id} . Consider using this in the future to train using the same data. \nEg: "
+            f"llm.train(dataset_id='{dataset_id}')"
+        )
 
         try:
-            if upload_base_path == "azure":
-                upload_to_blob(data, dataset_location)
+            if self.upload_base_path == "azure":
+                upload_to_blob(data_str, dataset_location)
                 print("Data pairs uploaded to blob.")
-            else:
-                upload_to_local(data, dataset_location)
-                print("Data pairs uploaded.")
 
         except Exception as e:
             print(f"Error uploading data pairs: {e}")
             raise e
-        e = time.time()
-        print(f"Time taken to upload data pairs: {e-s} seconds")
+
+        return dataset_id
 
     def upload_file(
         self, file_path, input_key: str = "input", output_key: str = "output"
@@ -152,11 +160,11 @@ class Lamini:
             )
 
         # Convert file records to appropriate format before uploading file
+        # TODO: read file in generator
         items = []
         if file_path.endswith(".jsonl") or file_path.endswith(".jsonlines"):
             with open(file_path) as dataset_file:
-                reader = jsonlines.Reader(dataset_file)
-                data = list(reader)
+                data = list(jsonlines.Reader(dataset_file))
 
                 for row in data:
                     items.append(
@@ -199,18 +207,31 @@ class Lamini:
 
     def train(
         self,
-        data: Optional[List] = None,
+        data: Optional[
+            Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ] = None,
         finetune_args: Optional[dict] = None,
         enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
+        dataset_id: Optional[str] = None,
     ):
-        if data and len(data) > 3000:
-            self.upload_data(data)
-            data = None
+        if dataset_id:
+            output = self.trainer.get_existing_dataset(dataset_id)
+            self.upload_base_path, dataset_location = (
+                output["upload_base_path"],
+                output["dataset_location"],
+            )
+            self.upload_file_path = dataset_location
 
-        return self.trainer.train(
+        if dataset_id is None and data is not None:
+            dataset_id = self.upload_data(data)
+            if (
+                self.upload_base_path == "azure"
+            ):  # if data is uploaded to azure, dont send it with the request
+                data = None
+        job = self.trainer.train(
             data,
             self.model_name,
             self.upload_file_path,
@@ -220,6 +241,8 @@ class Lamini:
             is_public,
             use_cached_model,
         )
+        job["dataset_id"] = dataset_id
+        return job
 
     # continuously poll until the job is completed
     def train_and_wait(
@@ -294,17 +317,16 @@ class Lamini:
         model_name,
         prompt,
         output_type,
-        stop_tokens,
         max_tokens,
+        max_new_tokens,
     ):
         req_data = {}
         req_data["model_name"] = model_name
         req_data["prompt"] = prompt
         req_data["out_type"] = output_type
-        if stop_tokens is not None:
-            req_data["stop_tokens"] = stop_tokens
-        if max_tokens is not None:
-            req_data["max_tokens"] = max_tokens
+        req_data["max_tokens"] = max_tokens
+        if max_new_tokens is not None:
+            req_data["max_new_tokens"] = max_new_tokens
         if self.model_config:
             req_data["model_config"] = self.model_config.as_dict()
         return req_data

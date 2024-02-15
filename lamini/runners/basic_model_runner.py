@@ -13,8 +13,6 @@ class BasicModelRunner(BaseRunner):
         api_url=None,
         config={},
         local_cache_file=None,
-        max_retries=0,
-        base_delay=10,
     ):
         super().__init__(
             config=config,
@@ -24,6 +22,4 @@ class BasicModelRunner(BaseRunner):
             api_key=api_key,
             api_url=api_url,
             local_cache_file=local_cache_file,
-            max_retries=max_retries,
-            base_delay=base_delay,
         )
