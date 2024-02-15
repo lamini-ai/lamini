@@ -1,25 +1,16 @@
 import asyncio
-import concurrent
 import functools
-import json
 import logging
-import os
 
 import aiohttp
-import lamini
-from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
-from lamini.api.rest_requests import make_async_web_request
+from lamini.api.utils.base_async_inference_queue import BaseAsyncInferenceQueue
+from lamini.api.utils.process_batch import process_batch
+from lamini.api.utils.reservations import create_reservation_api
 
 logger = logging.getLogger(__name__)
 
 
-class AsyncInferenceQueue:
-    def __init__(self, api_key, api_url, config):
-        self.config = get_config(config)
-        self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
-        self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
-        self.api_prefix = self.api_url + "/v1/"
-
+class AsyncInferenceQueue(BaseAsyncInferenceQueue):
     async def submit(self, request, local_cache_file, callback=None):
         # Break the request into batches
         results = {}
@@ -27,6 +18,13 @@ class AsyncInferenceQueue:
         local_cache = None
         if local_cache_file:
             local_cache = self.read_local_cache(local_cache_file)
+        self.reservation_api = create_reservation_api(
+            self.api_key, self.api_url, self.config
+        )
+        self.reservation_api.initialize_reservation(
+            len(request["prompt"]), request["model_name"], request["max_tokens"]
+        )
+        self.reservation_api.pause_for_reservation_start()
         connector = aiohttp.TCPConnector(limit=self.get_max_workers())
         async with aiohttp.ClientSession(connector=connector) as client:
             batches = self.form_batches(
@@ -38,7 +36,9 @@ class AsyncInferenceQueue:
                 local_cache,
                 callback,
             )
-
+            self.reservation_polling_task = asyncio.create_task(
+                self.reservation_api.kickoff_reservation_polling(client)
+            )
             wrapped = return_args_and_exceptions(process_batch)
             async for result in map_unordered(
                 wrapped, batches, limit=self.get_max_workers()
@@ -47,118 +47,47 @@ class AsyncInferenceQueue:
                     exceptions.append(result[1])
                 else:
                     results[result[0]["index"]] = result[1]
-        if local_cache_file:
-            if len(exceptions) > 0:
-                raise exceptions[0]
+        self.reservation_api.is_working = False
+        if self.reservation_polling_task is not None:
+            self.reservation_polling_task.cancel()
+        if self.reservation_api.polling_task is not None:
+            self.reservation_api.polling_task.cancel()
+        if len(exceptions) > 0:
+            print(
+                f"Encountered {len(exceptions)} errors during run. Raising first as an exception."
+            )
+            raise exceptions[0]
         # Combine the results and return them
         return self.combine_results(results)
-
-    def read_local_cache(self, local_cache_file):
-        if not os.path.exists(local_cache_file):
-            return {}
-
-        with open(local_cache_file, "r") as file:
-            content = file.read()
-
-        content = content.strip()
-        if content.strip() == "":
-            return {}
-
-        if content[-1] != ",":
-            raise Exception(f"The last char in {local_cache_file} should be ','")
-
-        content = "{" + content[:-1] + "}"
-        cache = json.loads(content)
-
-        if not isinstance(cache, dict):
-            raise Exception(f"{local_cache_file} cannot be loaded as dict")
-
-        return cache
 
     def combine_results(self, results):
         results = dict(sorted(results.items()))
         combined_results = []
-        for index, result_future in results.items():
-            if isinstance(result_future, concurrent.futures._base.Future):
-                result = result_future.result()
-            else:
-                result = result_future
-            logger.info(f"inference result: {result}")
-            if isinstance(result, list):
-                combined_results.extend(result)
-            else:
-                combined_results.append(result)
-
+        for _, result_future in results.items():
+            logger.info(f"inference result_future: {result_future}")
+            assert isinstance(result_future, list)
+            combined_results.extend(result_future)
         return combined_results
-
-    def get_max_workers(self):
-        return lamini.max_workers
 
     async def form_batches(
         self, request, client, key, api_prefix, local_cache_file, local_cache, callback
     ):
         batch_size = self.get_batch_size()
-
-        if isinstance(request["prompt"], str):
+        assert isinstance(request["prompt"], list)
+        async for i in arange(0, len(request["prompt"]), batch_size):
+            batch = request.copy()
+            end = min(i + batch_size, len(request["prompt"]))
+            batch["prompt"] = request["prompt"][i:end]
             yield {
                 "api_prefix": api_prefix,
                 "key": key,
-                "batch": request,
+                "batch": batch,
                 "client": client,
                 "local_cache_file": local_cache_file,
                 "local_cache": local_cache,
-                "index": 0,
+                "index": i,
                 "callback": callback,
             }
-        else:
-            async for i in arange(0, len(request["prompt"]), batch_size):
-                batch = request.copy()
-                end = min(i + batch_size, len(request["prompt"]))
-                batch["prompt"] = request["prompt"][i:end]
-                yield {
-                    "api_prefix": api_prefix,
-                    "key": key,
-                    "batch": batch,
-                    "client": client,
-                    "local_cache_file": local_cache_file,
-                    "local_cache": local_cache,
-                    "index": i,
-                    "callback": callback,
-                }
-
-    def get_batch_size(self):
-        return lamini.batch_size
-
-
-async def process_batch(args):
-    client = args["client"]
-    key = args["key"]
-    api_prefix = args["api_prefix"]
-    batch = args["batch"]
-    local_cache_file = args["local_cache_file"]
-    local_cache = args["local_cache"]
-    callback = args["callback"]
-    logger.debug(f"Sending batch")
-    url = api_prefix + "completions"
-    batch_k = str(batch)
-    if local_cache and batch_k in local_cache:
-        return local_cache[batch_k]
-    result = await make_async_web_request(client, key, url, "post", batch)
-    logger.debug(f"Received batch response")
-    if local_cache_file and result:
-        append_local_cache(local_cache_file, batch_k, result)
-    if callback:
-        callback(batch, result)
-    return result
-
-
-def append_local_cache(local_cache_file, batch, res):
-    batch_k = json.dumps(str(batch))
-    batch_v = json.dumps(res)
-    cache_line = f"{batch_k}: {batch_v},\n\n"
-
-    with open(local_cache_file, "a") as file:
-        file.write(cache_line)
 
 
 async def map_unordered(func, iterable, *, limit):

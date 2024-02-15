@@ -1,17 +1,34 @@
 import asyncio
 
 import aiohttp
+import lamini
 import requests
 from lamini.error.error import (
     APIError,
+    APIUnprocessableContentError,
     AuthenticationError,
-    ModelNameError,
+    ModelNotFound,
     RateLimitError,
     UnavailableResourceError,
     UserError,
 )
 
 
+def retry_once(func):
+    async def wrapped(*args, **kwargs):
+        try:
+            result = await func(*args, **kwargs)
+        except Exception as e:
+            if lamini.retry:
+                result = await func(*args, **kwargs)
+            else:
+                raise e
+        return result
+
+    return wrapped
+
+
+@retry_once
 async def make_async_web_request(client, key, url, http_method, json=None):
     headers = {
         "Content-Type": "application/json",
@@ -45,12 +62,12 @@ async def make_async_web_request(client, key, url, http_method, json=None):
 
 
 async def handle_error(resp: aiohttp.ClientResponse):
-    if resp.status == 404:
+    if resp.status == 594:
         try:
             json_response = await resp.json()
         except Exception:
             json_response = {}
-        raise ModelNameError(json_response.get("detail", "ModelNameError"))
+        raise ModelNotFound(json_response.get("detail", "ModelNotFound"))
     if resp.status == 429:
         try:
             json_response = await resp.json()
@@ -74,7 +91,9 @@ async def handle_error(resp: aiohttp.ClientResponse):
             json_response = await resp.json()
         except Exception:
             json_response = {}
-        raise UserError(json_response.get("detail", "UserError"))
+        raise APIUnprocessableContentError(
+            "The API has returned a 422 Error. This typically happens when the python package is outdated. Please consider updating the lamini python package version with `pip install --upgrade --force-reinstall lamini`"
+        )
     if resp.status == 503:
         try:
             json_response = await resp.json()
@@ -109,12 +128,12 @@ def make_web_request(key, url, http_method, json=None):
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         print("status code:", resp.status_code)
-        if resp.status_code == 404:
+        if resp.status_code == 594:
             try:
                 json_response = resp.json()
             except Exception:
                 json_response = {}
-            raise ModelNameError(json_response.get("detail", "ModelNameError"))
+            raise ModelNotFound(json_response.get("detail", "ModelNameError"))
         if resp.status_code == 429:
             try:
                 json_response = resp.json()

@@ -23,3 +23,4 @@ Find your LAMINI_API_KEY at https://app.lamini.ai/account"""
 
 max_workers = os.environ.get("LAMINI_MAX_WORKERS", 80)
 batch_size = os.environ.get("LAMINI_BATCH_SIZE", 5)
+retry = os.environ.get("LAMINI_RETRY", False)
