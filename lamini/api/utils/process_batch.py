@@ -27,11 +27,14 @@ async def process_batch(args):
     def can_submit_query():
         if reservation_api.current_reservation is None:
             return True
-        if reservation_api.capacity_remaining <= 0:
+        if reservation_api.capacity_remaining < len(batch["prompt"]):
             return False
         # Now we can consume credits and send batch
         reservation_api.update_capacity_use(len(batch["prompt"]))
-        return reservation_api.capacity_remaining >= 0
+        logger.debug(
+            f"yes reservation_api.capacity_remaining {reservation_api.capacity_remaining}"
+        )
+        return True
 
     if not can_submit_query():
         async with reservation_api.condition:
@@ -47,14 +50,11 @@ async def process_batch(args):
     logger.debug(f"Sending batch {args['index']}")
     result = await make_async_web_request(client, key, url, "post", batch)
     logger.debug(f"Received batch response")
-    logger.debug(f"reservation_api.capacity_needed {reservation_api.capacity_needed}")
-    logger.debug(
-        f"reservation_api.capacity_remaining {reservation_api.capacity_remaining}"
-    )
     reservation_api.update_capacity_needed(len(batch["prompt"]))
+    logger.debug(f"reservation_api.capacity_needed {reservation_api.capacity_needed}")
     if (
         reservation_api.capacity_needed > 0
-        and reservation_api.capacity_remaining <= 0
+        and reservation_api.capacity_remaining < len(batch["prompt"])
         and not reservation_api.is_polling
     ):
         logger.debug(
@@ -65,7 +65,14 @@ async def process_batch(args):
     if local_cache_file and result:
         append_local_cache(local_cache_file, batch_k, result)
     if callback:
-        callback(batch, result)
+        callback(
+            {
+                "index": args["index"],
+                **batch,
+                "completion": result,
+                "metadata": args["metadata"],
+            }
+        )
     return result
 
 

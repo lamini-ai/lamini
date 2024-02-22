@@ -57,6 +57,7 @@ class Lamini:
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
+        metadata: Optional[List] = None,
     ):
         if isinstance(prompt, str):
             req_data = self.make_llm_req_map(
@@ -80,6 +81,7 @@ class Lamini:
                 max_tokens=max_tokens,
                 max_new_tokens=max_new_tokens,
                 callback=callback,
+                metadata=metadata,
             )
         )
 
@@ -91,6 +93,7 @@ class Lamini:
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
+        metadata: Optional[List] = None,
     ):
         req_data = self.make_llm_req_map(
             prompt=prompt,
@@ -107,8 +110,11 @@ class Lamini:
             return result
 
         assert isinstance(prompt, list)
+        if metadata is not None:
+            assert isinstance(metadata, list)
+            assert len(metadata) == len(prompt)
         results = await self.async_inference_queue.submit(
-            req_data, self.local_cache_file, callback
+            req_data, self.local_cache_file, callback, metadata
         )
 
         if output_type is None:
@@ -302,6 +308,9 @@ class Lamini:
         self,
     ):
         return self.trainer.cancel_all_jobs()
+
+    def resume_job(self, job_id=None):
+        return self.trainer.resume_job(job_id)
 
     def check_job_status(self, job_id=None):
         return self.trainer.check_job_status(job_id)

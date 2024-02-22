@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import jsonlines
 import pandas as pd
@@ -35,8 +35,17 @@ class BaseRunner:
         system_prompt: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
+        callback: Optional[Callable] = None,
+        metadata: Optional[List] = None,
     ):
-        return self.call(prompt, system_prompt, output_type, max_tokens)
+        return self.call(
+            prompt,
+            system_prompt,
+            output_type,
+            max_tokens,
+            callback,
+            metadata,
+        )
 
     def call(
         self,
@@ -44,6 +53,8 @@ class BaseRunner:
         system_prompt: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
+        callback: Optional[Callable] = None,
+        metadata: Optional[List] = None,
     ):
         input_objects = self.create_final_prompts(prompt, system_prompt)
 
@@ -52,6 +63,8 @@ class BaseRunner:
             model_name=self.model_name,
             max_tokens=max_tokens,
             output_type=output_type,
+            callback=callback,
+            metadata=metadata,
         )
 
     def create_final_prompts(self, prompt: Union[str, List[str]], system_prompt: str):
