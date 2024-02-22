@@ -42,7 +42,11 @@ class Reservations:
         self.is_polling = False
 
     def initialize_reservation(
-        self, capacity: int, model_name: str, max_tokens: Optional[int]
+        self,
+        capacity: int,
+        model_name: str,
+        batch_size: int,
+        max_tokens: Optional[int],
     ):
         try:
             reservation = make_web_request(
@@ -53,6 +57,7 @@ class Reservations:
                     "capacity": capacity,
                     "model_name": model_name,
                     "max_tokens": max_tokens,
+                    "batch_size": batch_size,
                 },
             )
             logger.debug("Made reservation " + str(reservation))
@@ -62,6 +67,7 @@ class Reservations:
             self.max_tokens = max_tokens
             self.capacity_remaining = reservation["capacity_remaining"]
             self.is_working = True
+            self.batch_size = batch_size
         except Exception as e:
             logger.debug(f"Error making reservation, continuing without one. {e}")
             self.current_reservation = None
@@ -94,6 +100,7 @@ class Reservations:
                 "capacity": self.capacity_needed,
                 "model_name": self.model_name,
                 "max_tokens": self.max_tokens,
+                "batch_size": self.batch_size,
             },
         )
         logger.debug("Made reservation " + str(reservation))
@@ -106,6 +113,15 @@ class Reservations:
             self.polling_task = asyncio.create_task(
                 self.kickoff_reservation_polling(client)
             )
+            asyncio.create_task(self.timer_based_polling(reservation["end_time"]))
+
+    async def timer_based_polling(self, wakeup_time):
+        current_time = datetime.datetime.utcnow()
+        end_time = datetime.datetime.fromisoformat(wakeup_time)
+        sleep_time = end_time - current_time
+        if sleep_time.total_seconds() > 0:
+            await asyncio.sleep(sleep_time.total_seconds())
+            self.poll_for_reservation.set()
 
     async def kickoff_reservation_polling(self, client):
         if self.current_reservation is None:

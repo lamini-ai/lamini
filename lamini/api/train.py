@@ -74,6 +74,13 @@ class Train:
 
         return make_web_request(self.api_key, url, "post", {})
 
+    def resume_job(self, job_id=None):
+        if job_id is None:
+            job_id = self.job_id
+        url = self.api_prefix + "train/jobs/" + str(job_id) + "/resume"
+
+        return make_web_request(self.api_key, url, "post", {})
+
     def check_job_status(self, job_id=None):
         if job_id is None:
             job_id = self.job_id

@@ -44,7 +44,7 @@ class BaseAsyncInferenceQueue:
         return lamini.max_workers
 
     def get_batch_size(self):
-        return lamini.batch_size
+        return int(lamini.batch_size)
 
     def __del__(self):
         if self.reservation_polling_task is not None:

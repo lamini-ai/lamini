@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncInferenceQueue(BaseAsyncInferenceQueue):
-    async def submit(self, request, local_cache_file, callback=None):
+    async def submit(self, request, local_cache_file, callback=None, metadata=None):
         # Break the request into batches
         results = {}
         exceptions = []
@@ -22,7 +22,10 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
             self.api_key, self.api_url, self.config
         )
         self.reservation_api.initialize_reservation(
-            len(request["prompt"]), request["model_name"], request["max_tokens"]
+            len(request["prompt"]),
+            request["model_name"],
+            self.get_batch_size(),
+            request["max_tokens"],
         )
         self.reservation_api.pause_for_reservation_start()
         connector = aiohttp.TCPConnector(limit=self.get_max_workers())
@@ -35,6 +38,7 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
                 local_cache_file,
                 local_cache,
                 callback,
+                metadata,
             )
             self.reservation_polling_task = asyncio.create_task(
                 self.reservation_api.kickoff_reservation_polling(client)
@@ -70,7 +74,15 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
         return combined_results
 
     async def form_batches(
-        self, request, client, key, api_prefix, local_cache_file, local_cache, callback
+        self,
+        request,
+        client,
+        key,
+        api_prefix,
+        local_cache_file,
+        local_cache,
+        callback,
+        metadata,
     ):
         batch_size = self.get_batch_size()
         assert isinstance(request["prompt"], list)
@@ -78,6 +90,9 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
             batch = request.copy()
             end = min(i + batch_size, len(request["prompt"]))
             batch["prompt"] = request["prompt"][i:end]
+            metadata_batch = None
+            if metadata is not None:
+                metadata_batch = metadata[i:end]
             yield {
                 "api_prefix": api_prefix,
                 "key": key,
@@ -87,6 +102,7 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
                 "local_cache": local_cache,
                 "index": i,
                 "callback": callback,
+                "metadata": metadata_batch,
             }
 
 
