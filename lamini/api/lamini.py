@@ -131,7 +131,6 @@ class Lamini:
 
         if not data:
             raise ValueError("Data pairs cannot be empty.")
-        # TODO: check if inside iter empty
 
         dataset_id = get_dataset_name()
         data_str = get_data_str(data)
@@ -246,6 +245,7 @@ class Lamini:
             peft_args,
             is_public,
             use_cached_model,
+            dataset_id
         )
         job["dataset_id"] = dataset_id
         return job

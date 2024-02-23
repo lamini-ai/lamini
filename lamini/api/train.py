@@ -32,6 +32,7 @@ class Train:
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
+        dataset_id: Optional[str] = None
     ):
         req_data = {"model_name": model_name}
         if data is not None:
@@ -50,6 +51,8 @@ class Train:
             req_data["use_cached_model"] = use_cached_model
         if self.model_config:
             req_data["model_config"] = self.model_config.as_dict()
+        if dataset_id is not None:
+            req_data["dataset_id"] = dataset_id
         url = self.api_prefix + "train"
 
         job = make_web_request(self.api_key, url, "post", req_data)
