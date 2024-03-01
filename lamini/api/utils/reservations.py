@@ -44,9 +44,9 @@ class Reservations:
     def initialize_reservation(
         self,
         capacity: int,
-        model_name: str,
-        batch_size: int,
-        max_tokens: Optional[int],
+        model_name: Optional[str] = None,
+        batch_size: Optional[int] = None,
+        max_tokens: Optional[int] = None,
     ):
         try:
             reservation = make_web_request(
@@ -54,7 +54,7 @@ class Reservations:
                 self.api_prefix,
                 "post",
                 {
-                    "capacity": capacity,
+                    "capacity": max(capacity, batch_size),
                     "model_name": model_name,
                     "max_tokens": max_tokens,
                     "batch_size": batch_size,
@@ -97,7 +97,7 @@ class Reservations:
             self.api_prefix,
             "post",
             {
-                "capacity": self.capacity_needed,
+                "capacity": max(self.capacity_needed, self.batch_size),
                 "model_name": self.model_name,
                 "max_tokens": self.max_tokens,
                 "batch_size": self.batch_size,
@@ -107,19 +107,20 @@ class Reservations:
         self.current_reservation = reservation
         self.capacity_remaining = reservation["capacity_remaining"]
         async with self.condition:
-            self.condition.notify_all()
+            self.condition.notify(len(self.condition._waiters))
         self.is_polling = False
         if self.is_working:
             self.polling_task = asyncio.create_task(
                 self.kickoff_reservation_polling(client)
             )
-            asyncio.create_task(self.timer_based_polling(reservation["end_time"]))
+            _ = asyncio.create_task(self.timer_based_polling(reservation["end_time"]))
 
     async def timer_based_polling(self, wakeup_time):
         current_time = datetime.datetime.utcnow()
         end_time = datetime.datetime.fromisoformat(wakeup_time)
         sleep_time = end_time - current_time
         if sleep_time.total_seconds() > 0:
+            logger.debug("timer_based_polling sleep time: " + str(sleep_time))
             await asyncio.sleep(sleep_time.total_seconds())
             self.poll_for_reservation.set()
 

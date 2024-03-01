@@ -103,20 +103,26 @@ class Train:
 
         return make_web_request(self.api_key, url, "get")
 
-    def create_dataset_location(self, dataset_id):
+    def create_dataset_location(self, dataset_id, is_public):
         url = self.api_prefix + "data"
+        req_data = {"dataset_id": dataset_id}
+        if is_public is not None:
+            req_data["is_public"] = is_public
         return make_web_request(
             self.api_key,
             url,
             "post",
-            {"dataset_id": dataset_id},
+            req_data,
         )
 
-    def get_existing_dataset(self, dataset_id):
+    def get_existing_dataset(self, dataset_id, is_public):
         url = self.api_prefix + "existing-data"
+        req_data = {"dataset_id": dataset_id}
+        if is_public is not None:
+            req_data["is_public"] = is_public
         return make_web_request(
             self.api_key,
             url,
             "post",
-            {"dataset_id": dataset_id},
+            req_data,
         )

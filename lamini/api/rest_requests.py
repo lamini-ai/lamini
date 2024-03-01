@@ -127,7 +127,7 @@ def make_web_request(key, url, http_method, json=None):
     try:
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        print("status code:", resp.status_code)
+        print("status code:", resp.status_code, url)
         if resp.status_code == 594:
             try:
                 json_response = resp.json()

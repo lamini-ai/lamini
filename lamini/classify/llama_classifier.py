@@ -168,9 +168,7 @@ class LaminiClassifier:
                     # Save partial progress
                     self.save_examples()
                 except Exception as e:
-                    logger.error(
-                        f"Failed to generate examples for class '{class_name}'"
-                    )
+                    logger.error(f"Failed to generate examples for class {class_name}")
                     logger.error(e)
                     logger.error(generated_examples.exception())
                     logger.error(

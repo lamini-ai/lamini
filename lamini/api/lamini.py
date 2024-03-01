@@ -28,7 +28,7 @@ class Lamini:
     ):
         self.config = get_config(config)
         self.model_name = model_name
-        if sys.version_info[0] >= 3 and sys.version_info[1] >= 10:
+        if sys.version_info >= (3, 10):
             logger.info("Using 3.10 InferenceQueue Interface")
             from lamini.api.utils.async_inference_queue_3_10 import (
                 AsyncInferenceQueue as AsyncInferenceQueue310,
@@ -59,7 +59,7 @@ class Lamini:
         callback: Optional[Callable] = None,
         metadata: Optional[List] = None,
     ):
-        if isinstance(prompt, str):
+        if isinstance(prompt, str) or (isinstance(prompt, list) and len(prompt) == 1):
             req_data = self.make_llm_req_map(
                 prompt=prompt,
                 model_name=model_name or self.model_name,
@@ -69,7 +69,10 @@ class Lamini:
             )
             result = self.completion.generate(req_data)
             if output_type is None:
-                result = result["output"]
+                if isinstance(prompt, list) and len(prompt) == 1:
+                    result = [single_result["output"] for single_result in result]
+                else:
+                    result = result["output"]
             return result
 
         assert isinstance(prompt, list)
@@ -103,10 +106,13 @@ class Lamini:
             max_new_tokens=max_new_tokens,
         )
 
-        if isinstance(prompt, str):
+        if isinstance(prompt, str) or (isinstance(prompt, list) and len(prompt) == 1):
             result = await self.completion.async_generate(req_data)
             if output_type is None:
-                result = result["output"]
+                if isinstance(prompt, list) and len(prompt) == 1:
+                    result = [single_result["output"] for single_result in result]
+                else:
+                    result = result["output"]
             return result
 
         assert isinstance(prompt, list)
@@ -123,7 +129,9 @@ class Lamini:
         return results
 
     def upload_data(
-        self, data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        self,
+        data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]],
+        is_public: Optional[bool] = None,
     ):
         def get_data_str(d):
             for item in d:
@@ -134,7 +142,7 @@ class Lamini:
 
         dataset_id = get_dataset_name()
         data_str = get_data_str(data)
-        output = self.trainer.create_dataset_location(dataset_id)
+        output = self.trainer.create_dataset_location(dataset_id, is_public)
         self.upload_base_path, dataset_location = (
             output["upload_base_path"],
             output["dataset_location"],
@@ -223,7 +231,7 @@ class Lamini:
         dataset_id: Optional[str] = None,
     ):
         if dataset_id:
-            output = self.trainer.get_existing_dataset(dataset_id)
+            output = self.trainer.get_existing_dataset(dataset_id, is_public)
             self.upload_base_path, dataset_location = (
                 output["upload_base_path"],
                 output["dataset_location"],
@@ -231,7 +239,7 @@ class Lamini:
             self.upload_file_path = dataset_location
 
         if dataset_id is None and data is not None:
-            dataset_id = self.upload_data(data)
+            dataset_id = self.upload_data(data, is_public)
             if (
                 self.upload_base_path == "azure"
             ):  # if data is uploaded to azure, dont send it with the request
@@ -245,7 +253,7 @@ class Lamini:
             peft_args,
             is_public,
             use_cached_model,
-            dataset_id
+            dataset_id,
         )
         job["dataset_id"] = dataset_id
         return job

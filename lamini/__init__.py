@@ -10,6 +10,10 @@ from lamini.api.lamini import Lamini
 from lamini.classify.llama_classifier import LaminiClassifier, BinaryLaminiClassifier
 from lamini.api.classifier import Classifier
 from lamini.api.embedding import Embedding
+from lamini.generation.generation_node import GenerationNode
+from lamini.generation.generation_pipeline import GenerationPipeline
+from lamini.generation.base_prompt_object import PromptObject
+from lamini.generation.split_response_node import SplitResponseNode
 
 import os
 
