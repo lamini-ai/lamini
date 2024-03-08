@@ -17,7 +17,18 @@ class Completion:
         )
         return resp
 
-    async def async_generate(self, params):
+    async def async_generate(self, params, client: aiohttp.ClientSession = None):
+        if client is not None:
+            assert isinstance(client, aiohttp.ClientSession)
+            resp = await make_async_web_request(
+                client,
+                self.api_key,
+                self.api_prefix + "streaming_completions",
+                "post",
+                params,
+            )
+            return resp
+
         async with aiohttp.ClientSession() as client:
             resp = await make_async_web_request(
                 client, self.api_key, self.api_prefix + "completions", "post", params

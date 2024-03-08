@@ -11,9 +11,6 @@ class PromptObject:
 
     def get_prompt(self) -> str:
         prompt = self.prompt
-        if self.response is not None:
-            for response in self.response:
-                prompt += response["output"]
         assert isinstance(prompt, str)
         return prompt
 
