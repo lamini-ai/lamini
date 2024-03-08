@@ -167,6 +167,16 @@ class Lamini:
     def upload_file(
         self, file_path, input_key: str = "input", output_key: str = "output"
     ):
+        items = self._upload_file_impl(file_path, input_key, output_key)
+        try:
+            self.upload_data(items)
+        except Exception as e:
+            print(f"Error reading data file: {e}")
+            raise e
+
+    def _upload_file_impl(
+        self, file_path, input_key: str = "input", output_key: str = "output"
+    ):
         if os.path.getsize(file_path) > 2e8:
             raise Exception(
                 "File size is too large, please upload file less than 200MB"
@@ -211,12 +221,7 @@ class Lamini:
             raise Exception(
                 "Upload of only csv and jsonlines file supported at the moment."
             )
-
-        try:
-            self.upload_data(items)
-        except Exception as e:
-            print(f"Error reading data file: {e}")
-            raise e
+        return items
 
     def train(
         self,
@@ -229,6 +234,7 @@ class Lamini:
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
         dataset_id: Optional[str] = None,
+        multi_node: Optional[bool] = None,
     ):
         if dataset_id:
             output = self.trainer.get_existing_dataset(dataset_id, is_public)
@@ -254,6 +260,7 @@ class Lamini:
             is_public,
             use_cached_model,
             dataset_id,
+            multi_node,
         )
         job["dataset_id"] = dataset_id
         return job
@@ -267,6 +274,7 @@ class Lamini:
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
+        multi_node: Optional[bool] = None,
         **kwargs,
     ):
         job = self.train(
@@ -276,6 +284,7 @@ class Lamini:
             peft_args=peft_args,
             is_public=is_public,
             use_cached_model=use_cached_model,
+            multi_node=multi_node,
         )
 
         try:
