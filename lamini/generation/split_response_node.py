@@ -27,12 +27,13 @@ class SplitResponseNode(BaseGenerationNode):
                 yield new_prompt
 
     def split_response(self, prompt_obj: PromptObject):
-        if not isinstance(prompt_obj.response, dict):
+        if isinstance(prompt_obj.response, dict):
+            for key, val in prompt_obj.response.items():
+                new_prompt_obj = PromptObject("", val, prompt_obj.data)
+                if self.prompt_lambda:
+                    self.prompt_lambda(new_prompt_obj)
+                yield new_prompt_obj
+        else:
             if self.prompt_lambda:
                 self.prompt_lambda(prompt_obj)
             return prompt_obj
-        for key, val in prompt_obj.response.items():
-            new_prompt_obj = PromptObject(val, prompt_obj.data)
-            if self.prompt_lambda:
-                self.prompt_lambda(new_prompt_obj)
-            yield new_prompt_obj
