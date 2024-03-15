@@ -34,9 +34,14 @@ class GenerationNode(BaseGenerationNode):
 
         self.model_config = self.config.get("model_config", None)
         self.max_tokens = max_tokens
+        self.preprocess = None
+        self.postprocess = None
 
-    def __call__(self, *args, **kwargs):
-        return self.generate(*args, **kwargs)
+    def __call__(self, prompt, *args, **kwargs):
+        prompt = self.transform_prompt(prompt)
+        results = self.generate(prompt, *args, **kwargs)
+        results = self.process_results(results)
+        return results
 
     def generate(
         self,
@@ -74,3 +79,33 @@ class GenerationNode(BaseGenerationNode):
         if self.model_config:
             req_data["model_config"] = self.model_config.as_dict()
         return req_data
+
+    async def transform_prompt(
+        self, prompt: Union[Iterator[PromptObject], AsyncIterator[PromptObject]]
+    ):
+        if isinstance(prompt, Iterator):
+            for a in prompt:
+                if self.preprocess:
+                    mod_a = self.preprocess(a)
+                    if mod_a is not None:
+                        a = mod_a
+                yield a
+        elif isinstance(prompt, AsyncIterator):
+            async for a in prompt:
+                if self.preprocess:
+                    mod_a = self.preprocess(a)
+                    if mod_a is not None:
+                        a = mod_a
+                yield a
+        else:
+            raise Exception("Invalid prompt type")
+
+    async def process_results(self, results: AsyncIterator[PromptObject]):
+        async for a in results:
+            if a is None or a.response is None:
+                continue
+            if self.postprocess:
+                mod_a = self.postprocess(a)
+                if mod_a is not None:
+                    a = mod_a
+            yield a

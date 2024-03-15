@@ -2,10 +2,10 @@ from typing import Any
 
 
 class PromptObject:
-    def __init__(self, prompt: str, data: Any = None) -> None:
+    def __init__(self, prompt: str, response: str = None, data: Any = None) -> None:
         assert isinstance(prompt, str)
         self.prompt = prompt
-        self.response = None
+        self.response = response
         self.error = None
         self.data = data
 

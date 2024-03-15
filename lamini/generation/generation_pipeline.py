@@ -41,7 +41,7 @@ class GenerationPipeline:
     async def __call(
         self,
         prompt: AsyncIterator,
-    ):
+    ) -> AsyncIterator:
         assert isinstance(prompt, Iterator) or isinstance(prompt, AsyncIterator)
         iterator = self.forward(prompt)
         assert isinstance(iterator, AsyncIterator)
