@@ -25,7 +25,7 @@ This package serves as a client + SDK compatible with the Lamini API, documented
 To install Lamini latest version, simply use pip:
 
 ```bash
-pip install --upgrade lamini
+pip install lamini
 ```
 
 To ensure optimal functionality, we recommend users to keep their installations updated by using the following command:
@@ -55,5 +55,13 @@ Get started with Lamini by taking the [Quick Tour](https://lamini-ai.github.io/i
 ### GitHub Repository
 
 The source code for the Lamini package can be found on GitHub at [lamini-ai/lamini](https://github.com/lamini-ai/lamini). Feel free to explore and contribute!
+
+---
+
+<div align="center">
+
+![GitHub last commit](https://img.shields.io/github/last-commit/lamini-ai/lamini) --- ![GitHub forks](https://img.shields.io/github/forks/lamini-ai/lamini) --- ![GitHub stars](https://img.shields.io/github/stars/lamini-ai/lamini) --- ![GitHub License](https://img.shields.io/github/license/lamini-ai/lamini)
+
+</div>
 
 ---
