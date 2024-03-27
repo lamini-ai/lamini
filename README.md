@@ -10,7 +10,7 @@
 ## Create Your Own Generative AI
 
 This python package is a client + SDK compatible with the Lamini API, 
-documented here:</br> https://lamini-ai.github.io/. </br>
+documented here: https://lamini-ai.github.io/. </br>
 For this reason, we recommend that most users stay up-to-date with the most recent stable version of our package available via </br>`pip install --upgrade --force-reinstall lamini`.
 
 ### Installation
