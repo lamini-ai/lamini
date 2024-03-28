@@ -4,7 +4,6 @@
 <div align="center">
 
 [![Latest Release](https://img.shields.io/badge/Latest%20Version-2.1.3-blue?logo=github)](https://github.com/lamini-ai/lamini/commits/main)
-![a.k.a](https://img.shields.io/badge/a.k.a%20-%2346-blue)
 [![GitHub License](https://img.shields.io/github/license/lamini-ai/lamini)](https://github.com/lamini-ai/lamini/blob/main/LICENSE)</div>
 
 ## Create Your Own Generative AI
