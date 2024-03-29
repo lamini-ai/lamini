@@ -11,9 +11,8 @@ logger = logging.getLogger(__name__)
 async def process_generation_batch(args):
     client = args["client"]
     key = args["key"]
-    api_prefix = args["api_prefix"]
     batch = args["batch"]
-    url = api_prefix + "completions"
+    url = get_url_from_args(args)
     # this will block until there is space in capacity
     reservation_api = get_reservation_api()
     await reservation_api.async_pause_for_reservation_start()
@@ -39,17 +38,10 @@ async def process_generation_batch(args):
         reservation_id = None
         if reservation_api.current_reservation is not None:
             reservation_id = reservation_api.current_reservation["reservation_id"]
-        json = {
-            "reservation_id": reservation_id,
-            "model_name": batch["model_name"],
-            "prompt": [p.get_prompt() for p in batch["prompt"]],
-            "out_type": batch["out_type"],
-            "max_tokens": batch["max_tokens"],
-            "max_new_tokens": batch.get("max_new_tokens", None),
-            "model_config": batch.get("model_config", None),
-        }
-        result = await make_async_web_request(client, key, url, "post", json)
+        json = get_body_from_args(batch, reservation_id)
+        result = await query_api(client, key, url, json, batch)
     except Exception as e:
+        logger.debug(f"Error in process_generation_batch {e}")
         for prompt_obj in batch["prompt"]:
             if prompt_obj.error is None:
                 prompt_obj.error = []
@@ -67,3 +59,41 @@ async def process_generation_batch(args):
             reservation_api.poll_for_reservation.set()
     for i, prompt_obj in enumerate(batch["prompt"]):
         prompt_obj.response = result[i]
+
+
+async def query_api(client, key, url, json, batch):
+    if batch["type"] == "embedding":
+        result = await make_async_web_request(client, key, url, "post", json)
+        result = result["embedding"]
+    else:
+        result = await make_async_web_request(client, key, url, "post", json)
+    return result
+
+
+def get_url_from_args(args):
+    api_prefix = args["api_prefix"]
+    batch = args["batch"]
+    if batch["type"] == "embedding":
+        url = api_prefix + "inference/embedding"
+    else:
+        url = api_prefix + "completions"
+    return url
+
+
+def get_body_from_args(batch, reservation_id):
+    if batch["type"] == "embedding":
+        json = {
+            "model_name": batch["model_name"],
+            "prompt": [p.get_prompt() for p in batch["prompt"]],
+        }
+    else:
+        json = {
+            "reservation_id": reservation_id,
+            "model_name": batch["model_name"],
+            "prompt": [p.get_prompt() for p in batch["prompt"]],
+            "out_type": batch["out_type"],
+            "max_tokens": batch["max_tokens"],
+            "max_new_tokens": batch.get("max_new_tokens", None),
+            "model_config": batch.get("model_config", None),
+        }
+    return json

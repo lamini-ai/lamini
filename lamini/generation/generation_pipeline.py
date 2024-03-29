@@ -6,6 +6,7 @@ from typing import AsyncIterator, Iterator, Optional
 import lamini
 from lamini.api.utils.reservations import create_reservation_api
 from lamini.generation.base_node_object import BaseGenerationNode
+from lamini.generation.token_optimizer import TokenOptimizer
 
 logger = logging.getLogger(__name__)
 

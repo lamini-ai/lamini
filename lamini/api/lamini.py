@@ -13,6 +13,7 @@ from lamini.api.train import Train
 from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
+from lamini.generation.token_optimizer import TokenOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,11 @@ class Lamini:
             assert isinstance(metadata, list)
             assert len(metadata) == len(prompt)
         results = await self.async_inference_queue.submit(
-            req_data, self.local_cache_file, callback, metadata
+            req_data,
+            self.local_cache_file,
+            callback,
+            metadata,
+            token_optimizer=TokenOptimizer(model_name or self.model_name),
         )
 
         if output_type is None:
@@ -140,23 +145,31 @@ class Lamini:
         if not data:
             raise ValueError("Data pairs cannot be empty.")
 
+        output = self.trainer.get_upload_base_path()
+        self.upload_base_path = output["upload_base_path"]
+
         dataset_id = get_dataset_name()
-        data_str = get_data_str(data)
-        output = self.trainer.create_dataset_location(dataset_id, is_public)
-        self.upload_base_path, dataset_location = (
-            output["upload_base_path"],
-            output["dataset_location"],
-        )
-        self.upload_file_path = dataset_location
-        print(
-            f"\nYour dataset id is: {dataset_id} . Consider using this in the future to train using the same data. \nEg: "
-            f"llm.train(dataset_id='{dataset_id}')"
-        )
 
         try:
             if self.upload_base_path == "azure":
-                upload_to_blob(data_str, dataset_location)
+                data_str = get_data_str(data)
+                output = self.trainer.create_blob_dataset_location(
+                    self.upload_base_path, dataset_id, is_public
+                )
+                self.upload_file_path = output["dataset_location"]
+                upload_to_blob(data_str, self.upload_file_path)
                 print("Data pairs uploaded to blob.")
+            else:
+                output = self.trainer.upload_dataset_locally(
+                    self.upload_base_path, dataset_id, is_public, data
+                )
+                self.upload_file_path = output["dataset_location"]
+                print("Data pairs uploaded to local.")
+
+            print(
+                f"\nYour dataset id is: {dataset_id} . Consider using this in the future to train using the same data. \nEg: "
+                f"llm.train(dataset_id='{dataset_id}')"
+            )
 
         except Exception as e:
             print(f"Error uploading data pairs: {e}")
@@ -165,37 +178,29 @@ class Lamini:
         return dataset_id
 
     def upload_file(
-        self, file_path, input_key: str = "input", output_key: str = "output"
+        self, file_path: str, input_key: str = "input", output_key: str = "output"
     ):
         items = self._upload_file_impl(file_path, input_key, output_key)
         try:
-            self.upload_data(items)
+            dataset_id = self.upload_data(items)
+            return dataset_id
         except Exception as e:
             print(f"Error reading data file: {e}")
             raise e
 
     def _upload_file_impl(
-        self, file_path, input_key: str = "input", output_key: str = "output"
+        self, file_path: str, input_key: str = "input", output_key: str = "output"
     ):
-        if os.path.getsize(file_path) > 2e8:
-            raise Exception(
-                "File size is too large, please upload file less than 200MB"
-            )
+        if os.path.getsize(file_path) > 1e10:
+            raise Exception("File size is too large, please upload file less than 10GB")
 
         # Convert file records to appropriate format before uploading file
-        # TODO: read file in generator
         items = []
         if file_path.endswith(".jsonl") or file_path.endswith(".jsonlines"):
             with open(file_path) as dataset_file:
-                data = list(jsonlines.Reader(dataset_file))
 
-                for row in data:
-                    items.append(
-                        {
-                            "input": row[input_key],
-                            "output": row[output_key] if output_key in row else "",
-                        }
-                    )
+                for row in jsonlines.Reader(dataset_file):
+                    yield {"input": row[input_key], "output": row.get(output_key, "")}
 
         elif file_path.endswith(".csv"):
             df = pd.read_csv(file_path).fillna("")
@@ -208,12 +213,10 @@ class Lamini:
 
             try:
                 for _, row in df.iterrows():
-                    items.append(
-                        {
-                            "input": row[input_key],
-                            "output": row[output_key] if output_key in row else "",
-                        }
-                    )
+                    yield {
+                        "input": row[input_key],
+                        "output": row.get(output_key, ""),
+                    }
             except KeyError:
                 raise ValueError("Each object must have 'input' and 'output' as keys")
 
@@ -237,19 +240,24 @@ class Lamini:
         multi_node: Optional[bool] = None,
     ):
         if dataset_id:
-            output = self.trainer.get_existing_dataset(dataset_id, is_public)
-            self.upload_base_path, dataset_location = (
-                output["upload_base_path"],
-                output["dataset_location"],
+            output = self.trainer.get_upload_base_path()
+            self.upload_base_path = output["upload_base_path"]
+            output = self.trainer.get_existing_dataset(
+                dataset_id, self.upload_base_path, is_public
             )
-            self.upload_file_path = dataset_location
+            self.upload_file_path = output["dataset_location"]
+            data = None
 
-        if dataset_id is None and data is not None:
+        elif not dataset_id and data:
             dataset_id = self.upload_data(data, is_public)
-            if (
-                self.upload_base_path == "azure"
-            ):  # if data is uploaded to azure, dont send it with the request
-                data = None
+            data = None
+
+        else:
+            raise ValueError(
+                "Data pairs can not be empty. Either data or dataset_id must be provided."
+            )
+
+        # TODO: remove passing `data` completely.
         job = self.trainer.train(
             data,
             self.model_name,

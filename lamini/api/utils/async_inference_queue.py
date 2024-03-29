@@ -22,6 +22,13 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
         self.reservation_api = create_reservation_api(
             self.api_key, self.api_url, self.config
         )
+        if self.token_optimizer is not None and "max_new_tokens" in request:
+            request["max_tokens"] = (
+                self.token_optimizer.calculate_heuristic_max_tokens_from_prompt(
+                    request["prompt"], request["max_new_tokens"]
+                )
+            )
+            logger.debug(f"Adjusted max_tokens to: {request['max_tokens']}")
         self.reservation_api.initialize_reservation(
             len(request["prompt"]),
             request["model_name"],

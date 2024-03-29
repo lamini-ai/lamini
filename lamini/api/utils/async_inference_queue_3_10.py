@@ -1,17 +1,26 @@
 import asyncio
 import functools
 import logging
+from typing import Optional
 
 import aiohttp
 from lamini.api.utils.base_async_inference_queue import BaseAsyncInferenceQueue
 from lamini.api.utils.process_batch import process_batch
 from lamini.api.utils.reservations import create_reservation_api
+from lamini.generation.token_optimizer import TokenOptimizer
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncInferenceQueue(BaseAsyncInferenceQueue):
-    async def submit(self, request, local_cache_file, callback=None, metadata=None):
+    async def submit(
+        self,
+        request,
+        local_cache_file,
+        callback=None,
+        metadata=None,
+        token_optimizer: Optional[TokenOptimizer] = None,
+    ):
         # Break the request into batches
         results = {}
         exceptions = []
@@ -21,6 +30,13 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
         self.reservation_api = create_reservation_api(
             self.api_key, self.api_url, self.config
         )
+        if token_optimizer is not None and "max_new_tokens" in request:
+            request["max_tokens"] = (
+                token_optimizer.calculate_heuristic_max_tokens_from_prompt(
+                    request["prompt"], request["max_new_tokens"]
+                )
+            )
+            logger.debug(f"Adjusted max_tokens to: {request['max_tokens']}")
         self.reservation_api.initialize_reservation(
             len(request["prompt"]),
             request["model_name"],

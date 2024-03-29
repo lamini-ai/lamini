@@ -49,6 +49,9 @@ class Reservations:
         max_tokens: Optional[int] = None,
     ):
         try:
+            logger.info(
+                f"Attempt reservation {capacity} {model_name} {batch_size} {max_tokens}"
+            )
             reservation = make_web_request(
                 self.api_key,
                 self.api_prefix,
@@ -60,7 +63,7 @@ class Reservations:
                     "batch_size": batch_size,
                 },
             )
-            logger.debug("Made reservation " + str(reservation))
+            logger.info("Made reservation " + str(reservation))
             self.current_reservation = reservation
             self.capacity_needed = capacity
             self.model_name = model_name
@@ -69,7 +72,7 @@ class Reservations:
             self.is_working = True
             self.batch_size = batch_size
         except Exception as e:
-            logger.debug(f"Error making reservation, continuing without one. {e}")
+            logger.warning(f"Error making reservation, continuing without one. {e}")
             self.current_reservation = None
             self.capacity_remaining = 0
             self.capacity_needed = 0
@@ -103,7 +106,7 @@ class Reservations:
                 "batch_size": self.batch_size,
             },
         )
-        logger.debug("Made reservation " + str(reservation))
+        logger.info("Made reservation " + str(reservation))
         self.current_reservation = reservation
         self.capacity_remaining = reservation["capacity_remaining"]
         async with self.condition:

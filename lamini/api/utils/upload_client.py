@@ -2,7 +2,7 @@ import hashlib
 import os
 import time
 from typing import Dict, Iterable, List, Union
-
+import itertools
 import jsonlines
 from azure.storage.blob import BlobClient
 
@@ -25,7 +25,8 @@ def upload_to_local(data, dataset_location):
     else:
         print("Uploading data....")
         with jsonlines.open(dataset_location, "w") as f:
-            f.write_all(data)
+            for row in data:
+                f.write(row)
         print(f"Upload completed for data.")
 
 
@@ -33,3 +34,18 @@ def get_dataset_name():
     m = hashlib.sha256()
     m.update(str(time.time()).encode("utf-8"))
     return m.hexdigest()
+
+
+class SerializableGenerator(list):
+    """Generator that is serializable by JSON to send uploaded data over http requests"""
+
+    def __init__(self, iterable):
+        tmp_body = iter(iterable)
+        try:
+            self._head = iter([next(tmp_body)])
+            self.append(tmp_body)
+        except StopIteration:
+            self._head = []
+
+    def __iter__(self):
+        return itertools.chain(self._head, *self[:1])

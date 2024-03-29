@@ -47,12 +47,13 @@ class PreciseTrainer:
         dataset_id: Optional[str] = None,
     ):
         if dataset_id:
-            output = self.trainer.get_existing_dataset(dataset_id, is_public)
-            self.upload_base_path, dataset_location = (
-                output["upload_base_path"],
-                output["dataset_location"],
+            self.upload_base_path = self.trainer.get_upload_base_path()[
+                "upload_base_path"
+            ]
+            output = self.trainer.get_existing_dataset(
+                dataset_id, self.upload_base_path, is_public
             )
-            self.upload_file_path = dataset_location
+            self.upload_file_path = output["dataset_location"]
 
         if dataset_id is None and data is not None:
             dataset_id = self.lamini_api.upload_data(data, is_public)
