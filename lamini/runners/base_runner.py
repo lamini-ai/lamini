@@ -35,6 +35,7 @@ class BaseRunner:
         system_prompt: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
+        max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
         metadata: Optional[List] = None,
     ):
@@ -43,6 +44,7 @@ class BaseRunner:
             system_prompt,
             output_type,
             max_tokens,
+            max_new_tokens,
             callback,
             metadata,
         )
@@ -53,6 +55,7 @@ class BaseRunner:
         system_prompt: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
+        max_new_tokens: Optional[int] = None,
         callback: Optional[Callable] = None,
         metadata: Optional[List] = None,
     ):
@@ -62,6 +65,7 @@ class BaseRunner:
             prompt=input_objects,
             model_name=self.model_name,
             max_tokens=max_tokens,
+            max_new_tokens=max_new_tokens,
             output_type=output_type,
             callback=callback,
             metadata=metadata,
@@ -210,6 +214,37 @@ class BaseRunner:
         self.data = []
 
     def train(
+        self,
+        limit=500,
+        is_public=False,
+        **kwargs,
+    ):
+        """
+        Train the LLM on added data. This function blocks until training is complete.
+        """
+        if len(self.data) < 2 and not self.lamini_api.upload_file_path:
+            raise Exception("Submit at least 2 data pairs to train to allow validation")
+        if limit is None:
+            data = self.data
+        elif len(self.data) > limit:
+            data = self.data[:limit]
+        else:
+            data = self.data
+
+        if self.lamini_api.upload_file_path:
+            response = self.lamini_api.train(
+                is_public=is_public,
+                **kwargs,
+            )
+        else:
+            response = self.lamini_api.train(
+                data,
+                is_public=is_public,
+                **kwargs,
+            )
+        return response
+
+    def train_and_wait(
         self,
         limit=500,
         is_public=False,

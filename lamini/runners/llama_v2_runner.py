@@ -24,7 +24,10 @@ class LlamaV2Runner(BaseRunner):
     ):
         super().__init__(
             config=config,
-            system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+            # important to only check None to allow "" empty system prompt
+            system_prompt=(
+                DEFAULT_SYSTEM_PROMPT if (system_prompt is None) else system_prompt
+            ),
             model_name=model_name,
             prompt_template=prompt_template,
             api_key=api_key,

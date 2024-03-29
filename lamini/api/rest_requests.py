@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import aiohttp
 import lamini
@@ -12,6 +13,8 @@ from lamini.error.error import (
     UnavailableResourceError,
     UserError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def retry_once(func):
@@ -35,7 +38,7 @@ async def make_async_web_request(client, key, url, http_method, json=None):
         "Authorization": "Bearer " + key,
     }
     assert http_method == "post" or http_method == "get"
-
+    logger.debug(f"Making {http_method} request to {url} with payload {json}")
     try:
         if http_method == "post":
             async with client.post(
@@ -45,6 +48,7 @@ async def make_async_web_request(client, key, url, http_method, json=None):
             ) as resp:
                 if resp.status == 200:
                     json_response = await resp.json()
+                    logger.debug("api response: " + str(json_response))
                 else:
                     await handle_error(resp)
         elif http_method == "get":

@@ -1,10 +1,11 @@
 import asyncio
 import functools
 import logging
-from typing import AsyncIterator, Iterator, TypeVar, Union
+from typing import AsyncIterator, Iterator, Optional, TypeVar, Union
 
 from lamini.generation.base_generation_queue import BaseGenerationQueue
 from lamini.generation.process_generation_batch import process_generation_batch
+from lamini.generation.token_optimizer import TokenOptimizer
 
 T = TypeVar("T")
 
@@ -42,12 +43,14 @@ class GenerationQueue(BaseGenerationQueue):
     async def submit(
         self,
         request,
+        token_optimizer: Optional[TokenOptimizer] = None,
     ):
         batches = self.form_batches(
             request,
             self.client,
             self.api_key,
             self.api_prefix,
+            token_optimizer,
         )
         batches = AppendableAsyncGenerator(batches)
         wrapped = return_args_and_exceptions(process_generation_batch)
@@ -82,11 +85,19 @@ class GenerationQueue(BaseGenerationQueue):
         client,
         key,
         api_prefix,
+        token_optimizer: Optional[TokenOptimizer],
     ):
         batch_size = self.get_batch_size()
         async for prompt in next_n(request["prompt"], batch_size):
             batch = request.copy()
             batch["prompt"] = prompt
+            if token_optimizer is not None and "max_new_tokens" in batch:
+                batch["max_tokens"] = (
+                    token_optimizer.calculate_heuristic_max_tokens_from_prompt(
+                        [p.prompt for p in batch["prompt"]], batch["max_new_tokens"]
+                    )
+                )
+                self.reservation_api.max_tokens = batch["max_tokens"]
             yield {
                 "api_prefix": api_prefix,
                 "key": key,

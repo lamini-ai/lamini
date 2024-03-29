@@ -4,7 +4,6 @@ import os
 
 import lamini
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
-from lamini.api.utils.reservations import create_reservation_api
 
 logger = logging.getLogger(__name__)
 
