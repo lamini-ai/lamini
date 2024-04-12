@@ -6,8 +6,9 @@ from lamini.error import error
 from lamini.runners.llama_v2_runner import LlamaV2Runner
 from lamini.runners.basic_model_runner import BasicModelRunner
 from lamini.runners.mistral_runner import MistralRunner
+from lamini.evaluators.benchmark import Benchmark
 from lamini.api.lamini import Lamini
-from lamini.classify.llama_classifier import LaminiClassifier, BinaryLaminiClassifier
+from lamini.classify.lamini_classifier import LaminiClassifier, BinaryLaminiClassifier
 from lamini.api.classifier import Classifier
 from lamini.api.embedding import Embedding
 from lamini.generation.generation_node import GenerationNode

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.1.4"
+version = "2.1.5"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
@@ -26,6 +26,7 @@ dependencies = [
     "azure-storage-blob",
     "scikit-learn",
     "aiohttp",
+    "lm-eval==0.4.2"
 ]
 
 [tool.setuptools]
@@ -37,8 +38,16 @@ packages = [
     "lamini.api.utils",
     "lamini.runners",
     "lamini.generation",
+    "lamini.evaluators",
+    "lamini.evaluators.custom",
+    "lamini.evaluators.custom.datasets",
+    "lamini.evaluators.helm",
+    "lamini.evaluators.utils",
     "llama",
 ]
+
+[tool.setuptools.package-data]
+"*" = ["*.jsonl"]
 
 [tool.autopep8]
 max_line_length = 127
