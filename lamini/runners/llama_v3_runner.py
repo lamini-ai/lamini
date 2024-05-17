@@ -3,15 +3,20 @@ from typing import List, Union
 import pandas as pd
 from lamini.runners.base_runner import BaseRunner
 
-DEFAULT_SYSTEM_PROMPT = "Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity."
+DEFAULT_SYSTEM_PROMPT = """\
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."""
 
 
-class MistralRunner(BaseRunner):
+class LlamaV3Runner(BaseRunner):
+    """A class for running and training a Llama V3 model, using system and user prompts"""
+
     def __init__(
         self,
-        model_name="mistralai/Mistral-7B-Instruct-v0.2",
+        model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
         system_prompt: str = None,
-        prompt_template="<s>[INST] {system} {user} [/INST]",
+        prompt_template="<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
         api_key=None,
         api_url=None,
         config={},

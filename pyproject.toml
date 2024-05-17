@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.1.6"
+version = "2.2.0"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
@@ -26,7 +26,7 @@ dependencies = [
     "azure-storage-blob",
     "scikit-learn",
     "aiohttp",
-    "lm-eval==0.4.2"
+    "faiss-cpu",
 ]
 
 [tool.setuptools]
@@ -43,6 +43,7 @@ packages = [
     "lamini.evaluators.custom.datasets",
     "lamini.evaluators.helm",
     "lamini.evaluators.utils",
+    "lamini.index",
     "llama",
 ]
 

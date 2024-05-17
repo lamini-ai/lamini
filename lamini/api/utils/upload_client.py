@@ -1,8 +1,9 @@
 import hashlib
+import itertools
 import os
 import time
 from typing import Dict, Iterable, List, Union
-import itertools
+
 import jsonlines
 from azure.storage.blob import BlobClient
 

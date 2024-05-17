@@ -25,24 +25,25 @@ class Train:
 
     def train(
         self,
-        data: list,
         model_name: str,
+        dataset_id: str,
         upload_file_path: Optional[str] = None,
         finetune_args: Optional[dict] = None,
+        gpu_config: Optional[dict] = None,
         enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
-        dataset_id: Optional[str] = None,
         multi_node: Optional[bool] = None,
     ):
         req_data = {"model_name": model_name}
-        if data is not None:
-            req_data["data"] = data
+        req_data["dataset_id"] = dataset_id
         if upload_file_path is not None:
             req_data["upload_file_path"] = upload_file_path
         if finetune_args is not None:
             req_data["finetune_args"] = finetune_args
+        if gpu_config is not None:
+            req_data["gpu_config"] = gpu_config
         if enable_peft is not None:
             req_data["enable_peft"] = enable_peft
         if peft_args is not None:
@@ -53,8 +54,6 @@ class Train:
             req_data["use_cached_model"] = use_cached_model
         if self.model_config:
             req_data["model_config"] = self.model_config.as_dict()
-        if dataset_id is not None:
-            req_data["dataset_id"] = dataset_id
         if multi_node is not None:
             req_data["multi_node"] = multi_node
         url = self.api_prefix + "train"
@@ -69,29 +68,28 @@ class Train:
 
     def precise_train(
         self,
-        data: list,
         model_name: str,
+        dataset_id: str,
         upload_file_path: Optional[str] = None,
         finetune_args: Optional[dict] = None,
+        gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
-        dataset_id: Optional[str] = None,
     ):
         req_data = {"model_name": model_name}
-        if data is not None:
-            req_data["data"] = data
+        req_data["dataset_id"] = dataset_id
         if upload_file_path is not None:
             req_data["upload_file_path"] = upload_file_path
         if finetune_args is not None:
             req_data["finetune_args"] = finetune_args
+        if gpu_config is not None:
+            req_data["gpu_config"] = gpu_config
         if is_public is not None:
             req_data["is_public"] = is_public
         if use_cached_model is not None:
             req_data["use_cached_model"] = use_cached_model
         if self.model_config:
             req_data["model_config"] = self.model_config.as_dict()
-        if dataset_id is not None:
-            req_data["dataset_id"] = dataset_id
         url = self.api_prefix + "precise_train"
 
         job = make_web_request(self.api_key, url, "post", req_data)
@@ -146,13 +144,30 @@ class Train:
         self, upload_base_path, dataset_id, is_public, data=None
     ):
         url = self.api_prefix + "data"
-        req_data = {"upload_base_path": upload_base_path, "dataset_id": dataset_id}
+        req_data = {
+            "upload_base_path": upload_base_path,
+            "dataset_id": dataset_id,
+        }
 
         if is_public is not None:
             req_data["is_public"] = is_public
 
         if data is not None:
             req_data["data"] = data
+
+        return make_web_request(
+            self.api_key,
+            url,
+            "post",
+            req_data,
+        )
+
+    def update_blob_dataset_num_datapoints(self, dataset_id, num_datapoints):
+        url = self.api_prefix + "data/num-datapoints"
+        req_data = {
+            "num_datapoints": num_datapoints,
+            "dataset_id": dataset_id,
+        }
 
         return make_web_request(
             self.api_key,

@@ -138,8 +138,12 @@ class Lamini:
         data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]],
         is_public: Optional[bool] = None,
     ):
+        num_datapoints = 0
+
         def get_data_str(d):
+            nonlocal num_datapoints
             for item in d:
+                num_datapoints += 1
                 yield json.dumps(item) + "\n"
 
         if not data:
@@ -158,6 +162,9 @@ class Lamini:
                 )
                 self.upload_file_path = output["dataset_location"]
                 upload_to_blob(data_str, self.upload_file_path)
+                self.trainer.update_blob_dataset_num_datapoints(
+                    dataset_id, num_datapoints
+                )
                 print("Data pairs uploaded to blob.")
             else:
                 output = self.trainer.upload_dataset_locally(
@@ -228,47 +235,40 @@ class Lamini:
 
     def train(
         self,
-        data: Optional[
-            Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
-        ] = None,
+        data_or_dataset_id: Union[
+            str, Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ],
         finetune_args: Optional[dict] = None,
+        gpu_config: Optional[dict] = None,
         enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
-        dataset_id: Optional[str] = None,
         multi_node: Optional[bool] = None,
     ):
-        if dataset_id:
-            output = self.trainer.get_upload_base_path()
-            self.upload_base_path = output["upload_base_path"]
-            output = self.trainer.get_existing_dataset(
-                dataset_id, self.upload_base_path, is_public
-            )
-            self.upload_file_path = output["dataset_location"]
-            data = None
-
-        elif not dataset_id and data:
-            dataset_id = self.upload_data(data, is_public)
-            data = None
-
+        if isinstance(data_or_dataset_id, str):
+            dataset_id = data_or_dataset_id
         else:
-            raise ValueError(
-                "Data pairs can not be empty. Either data or dataset_id must be provided."
-            )
+            dataset_id = self.upload_data(data_or_dataset_id, is_public=is_public)
+        assert dataset_id is not None
+        output = self.trainer.get_upload_base_path()
+        self.upload_base_path = output["upload_base_path"]
+        output = self.trainer.get_existing_dataset(
+            dataset_id, self.upload_base_path, is_public
+        )
+        self.upload_file_path = output["dataset_location"]
 
-        # TODO: remove passing `data` completely.
         job = self.trainer.train(
-            data,
-            self.model_name,
-            self.upload_file_path,
-            finetune_args,
-            enable_peft,
-            peft_args,
-            is_public,
-            use_cached_model,
-            dataset_id,
-            multi_node,
+            model_name=self.model_name,
+            dataset_id=dataset_id,
+            upload_file_path=self.upload_file_path,
+            finetune_args=finetune_args,
+            gpu_config=gpu_config,
+            enable_peft=enable_peft,
+            peft_args=peft_args,
+            is_public=is_public,
+            use_cached_model=use_cached_model,
+            multi_node=multi_node,
         )
         job["dataset_id"] = dataset_id
         return job
@@ -276,8 +276,11 @@ class Lamini:
     # continuously poll until the job is completed
     def train_and_wait(
         self,
-        data: Optional[List] = None,
+        data_or_dataset_id: Union[
+            str, Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ],
         finetune_args: Optional[dict] = None,
+        gpu_config: Optional[dict] = None,
         enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
@@ -286,8 +289,9 @@ class Lamini:
         **kwargs,
     ):
         job = self.train(
-            data,
+            data_or_dataset_id,
             finetune_args=finetune_args,
+            gpu_config=gpu_config,
             enable_peft=enable_peft,
             peft_args=peft_args,
             is_public=is_public,
@@ -357,7 +361,7 @@ class Lamini:
         req_data = {}
         req_data["model_name"] = model_name
         req_data["prompt"] = prompt
-        req_data["out_type"] = output_type
+        req_data["output_type"] = output_type
         req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens

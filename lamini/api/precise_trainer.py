@@ -31,44 +31,41 @@ class PreciseTrainer:
     ):
         items = self.lamini_api._upload_file_impl(file_path, input_key, output_key)
         try:
-            self.lamini_api.upload_data(items)
+            return self.lamini_api.upload_data(items)
         except Exception as e:
             print(f"Error reading data file: {e}")
             raise e
 
     def train(
         self,
-        data: Optional[
-            Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
-        ] = None,
+        data_or_dataset_id: Union[
+            str, Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ],
         finetune_args: Optional[dict] = None,
+        gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
-        dataset_id: Optional[str] = None,
     ):
-        if dataset_id:
-            self.upload_base_path = self.trainer.get_upload_base_path()[
-                "upload_base_path"
-            ]
-            output = self.trainer.get_existing_dataset(
-                dataset_id, self.upload_base_path, is_public
+        if isinstance(data_or_dataset_id, str):
+            dataset_id = data_or_dataset_id
+        else:
+            dataset_id = self.lamini_api.upload_data(
+                data_or_dataset_id, is_public=is_public
             )
-            self.upload_file_path = output["dataset_location"]
+        self.upload_base_path = self.trainer.get_upload_base_path()["upload_base_path"]
+        output = self.trainer.get_existing_dataset(
+            dataset_id, self.upload_base_path, is_public
+        )
+        self.upload_file_path = output["dataset_location"]
 
-        if dataset_id is None and data is not None:
-            dataset_id = self.lamini_api.upload_data(data, is_public)
-            if (
-                self.upload_base_path == "azure"
-            ):  # if data is uploaded to azure, dont send it with the request
-                data = None
         job = self.trainer.precise_train(
-            data,
             self.model_name,
+            dataset_id,
             self.upload_file_path or self.lamini_api.upload_file_path,
             finetune_args,
+            gpu_config,
             is_public,
             use_cached_model,
-            dataset_id,
         )
         job["dataset_id"] = dataset_id
         return job
