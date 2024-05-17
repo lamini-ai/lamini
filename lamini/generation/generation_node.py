@@ -74,7 +74,7 @@ class GenerationNode(BaseGenerationNode):
         req_data = {}
         req_data["model_name"] = model_name
         req_data["prompt"] = prompt
-        req_data["out_type"] = output_type
+        req_data["output_type"] = output_type
         req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens

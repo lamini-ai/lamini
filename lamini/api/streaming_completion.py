@@ -27,6 +27,8 @@ class StreamingCompletionObject:
         if self.done_streaming:
             raise StopIteration()
         time.sleep(self.polling_interval)
+        if self.server is not None:
+            self.request_params["server"] = self.server
         resp = make_web_request(
             self.api_key,
             self.api_url,
@@ -202,7 +204,7 @@ class StreamingCompletion:
         req_data = {}
         req_data["model_name"] = model_name
         req_data["prompt"] = prompt
-        req_data["out_type"] = output_type
+        req_data["output_type"] = output_type
         req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens

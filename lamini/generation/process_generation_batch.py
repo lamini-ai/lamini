@@ -91,7 +91,7 @@ def get_body_from_args(batch, reservation_id):
             "reservation_id": reservation_id,
             "model_name": batch["model_name"],
             "prompt": [p.get_prompt() for p in batch["prompt"]],
-            "out_type": batch["out_type"],
+            "output_type": batch["output_type"],
             "max_tokens": batch["max_tokens"],
             "max_new_tokens": batch.get("max_new_tokens", None),
             "model_config": batch.get("model_config", None),

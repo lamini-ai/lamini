@@ -24,7 +24,7 @@ class BinaryLaminiClassifier:
     def __init__(
         self,
         config: dict = {},
-        model_name: str = "meta-llama/Llama-2-7b-chat-hf",
+        model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
         augmented_example_count: int = 10,
         generator_from_prompt=None,
         example_modifier=None,
@@ -97,7 +97,7 @@ class LaminiClassifier:
     def __init__(
         self,
         config: dict = {},
-        model_name: str = "meta-llama/Llama-2-7b-chat-hf",
+        model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
         augmented_example_count: int = 10,
         batch_size: int = 10,
         threads: int = 1,
@@ -461,7 +461,7 @@ class DefaultExampleGenerator:
         self,
         prompt,
         config=None,
-        model_name="meta-llama/Llama-2-7b-chat-hf",
+        model_name="meta-llama/Meta-Llama-3-8B-Instruct",
         batch_size=10,
     ):
         self.prompt = prompt
@@ -570,7 +570,10 @@ class DefaultExampleGenerator:
 
 class DefaultExampleModifier:
     def __init__(
-        self, config=None, model_name="meta-llama/Llama-2-7b-chat-hf", batch_size=10
+        self,
+        config=None,
+        model_name="meta-llama/Meta-Llama-3-8B-Instruct",
+        batch_size=10,
     ):
         self.config = config
         self.model_name = model_name
@@ -664,7 +667,9 @@ class DefaultExampleModifier:
 
 
 class DefaultExampleExpander:
-    def __init__(self, prompt, config=None, model_name="meta-llama/Llama-2-7b-chat-hf"):
+    def __init__(
+        self, prompt, config=None, model_name="meta-llama/Meta-Llama-3-8B-Instruct"
+    ):
         self.prompt = prompt
         self.config = config
         self.model_name = model_name
