@@ -100,9 +100,9 @@ class AsyncInferenceQueue(BaseAsyncInferenceQueue):
         callback,
         metadata,
     ):
-        batch_size = self.get_batch_size()
         assert isinstance(request["prompt"], list)
-        async for i in arange(0, len(request["prompt"]), batch_size):
+        batch_size_func = self.reservation_api.get_dynamic_max_batch_size
+        async for i, batch_size in arange_w_step_func(0, len(request["prompt"]), batch_size_func):
             batch = request.copy()
             end = min(i + batch_size, len(request["prompt"]))
             batch["prompt"] = request["prompt"][i:end]
@@ -177,4 +177,12 @@ async def arange(start, stop=None, step=1):
         range_ = range(start)
     for i in range_:
         yield i
+        await asyncio.sleep(0)
+
+async def arange_w_step_func(start, stop, step_func):
+    i = start
+    while i < stop:
+        batch_size = step_func()
+        yield (i, batch_size)
+        i += batch_size
         await asyncio.sleep(0)

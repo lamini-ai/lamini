@@ -35,6 +35,7 @@ class Reservations:
         self.current_reservation = None
         self.capacity_remaining = 0
         self.capacity_needed = 0
+        self.dynamic_max_batch_size = 0
         self.condition = asyncio.Condition()
         self.is_working = False
         self.polling_task = None
@@ -64,17 +65,21 @@ class Reservations:
                 },
             )
             logger.info("Made reservation " + str(reservation))
+            if "dynamic_max_batch_size" not in reservation:
+                reservation["dynamic_max_batch_size"] = batch_size
             self.current_reservation = reservation
             self.capacity_needed = capacity
             self.model_name = model_name
             self.max_tokens = max_tokens
             self.capacity_remaining = reservation["capacity_remaining"]
+            self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
             self.is_working = True
             self.batch_size = batch_size
         except Exception as e:
             logger.warning(f"Error making reservation, continuing without one. {e}")
             self.current_reservation = None
             self.capacity_remaining = 0
+            self.dynamic_max_batch_size = 0
             self.capacity_needed = 0
             self.model_name = model_name
             self.max_tokens = None
@@ -107,8 +112,11 @@ class Reservations:
             },
         )
         logger.info("Made reservation " + str(reservation))
+        if "dynamic_max_batch_size" not in reservation:
+            reservation["dynamic_max_batch_size"] = batch_size
         self.current_reservation = reservation
         self.capacity_remaining = reservation["capacity_remaining"]
+        self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
         async with self.condition:
             self.condition.notify(len(self.condition._waiters))
         self.is_polling = False
@@ -162,3 +170,6 @@ class Reservations:
     def __del__(self):
         if self.polling_task is not None:
             self.polling_task.cancel()
+
+    def get_dynamic_max_batch_size(self):
+        return self.dynamic_max_batch_size
