@@ -9,13 +9,18 @@ from lamini.api.rest_requests import make_async_web_request, make_web_request
 
 
 class StreamingCompletionObject:
-    def __init__(self, request_params, api_url, api_key, polling_interval):
+    def __init__(
+        self, request_params, api_url, api_key, polling_interval, max_errors=0
+    ):
         self.request_params = request_params
         self.api_url = api_url
         self.api_key = api_key
         self.done_streaming = False
         self.server = None
         self.polling_interval = polling_interval
+        self.current_result = None
+        self.error_count = 0
+        self.max_errors = max_errors
 
     def __iter__(self):
         return self
@@ -29,26 +34,38 @@ class StreamingCompletionObject:
         time.sleep(self.polling_interval)
         if self.server is not None:
             self.request_params["server"] = self.server
-        resp = make_web_request(
-            self.api_key,
-            self.api_url,
-            "post",
-            self.request_params,
-        )
-        self.server = resp["server"]
-        if resp["status"][0]:
-            self.done_streaming = True
-        return resp["data"][0]
+        try:
+            resp = make_web_request(
+                self.api_key,
+                self.api_url,
+                "post",
+                self.request_params,
+            )
+
+            self.server = resp["server"]
+            if resp["status"][0]:
+                self.done_streaming = True
+            self.current_result = resp["data"][0]
+        except Exception as e:
+            self.error_count += 1
+            if self.error_count > self.max_errors:
+                raise e
+        return self.current_result
 
 
 class AsyncStreamingCompletionObject:
-    def __init__(self, request_params, api_url, api_key, polling_interval):
+    def __init__(
+        self, request_params, api_url, api_key, polling_interval, max_errors=5
+    ):
         self.request_params = request_params
         self.api_url = api_url
         self.api_key = api_key
         self.done_streaming = False
         self.server = None
         self.polling_interval = polling_interval
+        self.current_result = None
+        self.error_count = 0
+        self.max_errors = max_errors
 
     def __aiter__(self):
         return self
@@ -60,18 +77,26 @@ class AsyncStreamingCompletionObject:
         if self.done_streaming:
             raise StopAsyncIteration()
         await asyncio.sleep(self.polling_interval)
-        async with aiohttp.ClientSession() as client:
-            resp = await make_async_web_request(
-                client,
-                self.api_key,
-                self.api_url,
-                "post",
-                self.request_params,
-            )
-        self.server = resp["server"]
-        if resp["status"][0]:
-            self.done_streaming = True
-        return resp["data"][0]
+        if self.server is not None:
+            self.request_params["server"] = self.server
+        try:
+            async with aiohttp.ClientSession() as client:
+                resp = await make_async_web_request(
+                    client,
+                    self.api_key,
+                    self.api_url,
+                    "post",
+                    self.request_params,
+                )
+            self.server = resp["server"]
+            if resp["status"][0]:
+                self.done_streaming = True
+            self.current_result = resp["data"][0]
+        except Exception as e:
+            self.error_count += 1
+            if self.error_count > self.max_errors:
+                raise e
+        return self.current_result
 
 
 class StreamingCompletion:

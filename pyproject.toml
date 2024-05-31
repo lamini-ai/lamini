@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.2.0"
+version = "2.2.1"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
