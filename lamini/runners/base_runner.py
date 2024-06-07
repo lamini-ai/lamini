@@ -244,6 +244,9 @@ class BaseRunner:
             )
         return response
 
+    # Add alias for tune
+    tune = train
+
     def train_and_wait(
         self,
         limit=500,
@@ -278,6 +281,9 @@ class BaseRunner:
             self.job_id = final_status["job_id"]
         except KeyError:
             raise Exception("Training failed")
+
+    # Add alias for tune
+    tune_and_wait = train_and_wait
 
     def evaluate(self) -> List:
         """Get evaluation results"""

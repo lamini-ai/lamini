@@ -14,6 +14,7 @@ from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
 from lamini.generation.token_optimizer import TokenOptimizer
+from lamini.api.rest_requests import get_version
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class Lamini:
     ):
         self.config = get_config(config)
         self.model_name = model_name
+        self.api_key = api_key
+        self.api_url = api_url
         if sys.version_info >= (3, 10):
             logger.info("Using 3.10 InferenceQueue Interface")
             from lamini.api.utils.async_inference_queue_3_10 import (
@@ -49,6 +52,9 @@ class Lamini:
         self.upload_base_path = None
         self.local_cache_file = local_cache_file
         self.model_config = self.config.get("model_config", None)
+
+    def version(self):
+        return get_version(self.api_key, self.api_url, self.config)
 
     def generate(
         self,
@@ -251,12 +257,12 @@ class Lamini:
         else:
             dataset_id = self.upload_data(data_or_dataset_id, is_public=is_public)
         assert dataset_id is not None
-        output = self.trainer.get_upload_base_path()
-        self.upload_base_path = output["upload_base_path"]
-        output = self.trainer.get_existing_dataset(
+        base_path = self.trainer.get_upload_base_path()
+        self.upload_base_path = base_path["upload_base_path"]
+        existing_dataset = self.trainer.get_existing_dataset(
             dataset_id, self.upload_base_path, is_public
         )
-        self.upload_file_path = output["dataset_location"]
+        self.upload_file_path = existing_dataset["dataset_location"]
 
         job = self.trainer.train(
             model_name=self.model_name,
@@ -272,6 +278,9 @@ class Lamini:
         )
         job["dataset_id"] = dataset_id
         return job
+
+    # Add alias for tune
+    tune = train
 
     # continuously poll until the job is completed
     def train_and_wait(
@@ -329,6 +338,9 @@ class Lamini:
             return self.cancel_job(job["job_id"])
 
         return status
+
+    # Add alias for tune
+    tune_and_wait = train_and_wait
 
     def cancel_job(self, job_id=None):
         return self.trainer.cancel_job(job_id)

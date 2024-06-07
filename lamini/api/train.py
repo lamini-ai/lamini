@@ -61,10 +61,13 @@ class Train:
         job = make_web_request(self.api_key, url, "post", req_data)
         self.job_id = job["job_id"]
         print(
-            f"Training job submitted! Check status of job {self.job_id} here: {self.ui_url}/train/{self.job_id}"
+            f"Tuning job submitted! Check status of job {self.job_id} here: {self.ui_url}/train/{self.job_id}"
         )
 
         return job
+
+    # Add alias for tune
+    tune = train
 
     def precise_train(
         self,
@@ -95,10 +98,13 @@ class Train:
         job = make_web_request(self.api_key, url, "post", req_data)
         self.job_id = job["job_id"]
         print(
-            f"Training job submitted! Check status of job {self.job_id} here: {self.ui_url}/train/{self.job_id}"
+            f"Tuning job submitted! Check status of job {self.job_id} here: {self.ui_url}/train/{self.job_id}"
         )
 
         return job
+
+    # Add alias for tune
+    precise_tune = precise_train
 
     def cancel_job(self, job_id=None):
         if job_id is None:

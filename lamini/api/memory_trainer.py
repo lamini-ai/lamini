@@ -69,3 +69,6 @@ class MemoryTrainer:
         )
         job["dataset_id"] = dataset_id
         return job
+
+    # Add alias for tune
+    tune = train
