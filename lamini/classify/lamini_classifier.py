@@ -191,6 +191,9 @@ class LaminiClassifier:
         # Train the classifier
         self.logistic_regression = LogisticRegression(random_state=0).fit(X, y)
 
+    # Add alias for tune
+    tune = train
+
     def add_data_to_class(self, class_name, examples):
         if not isinstance(examples, list):
             examples = [examples]

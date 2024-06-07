@@ -1,9 +1,10 @@
 import asyncio
 import logging
-
 import aiohttp
 import lamini
 import requests
+import pkg_resources
+
 from lamini.error.error import (
     APIError,
     APIUnprocessableContentError,
@@ -13,8 +14,25 @@ from lamini.error.error import (
     UnavailableResourceError,
     UserError,
 )
+from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 
 logger = logging.getLogger(__name__)
+
+warn_once = False
+
+
+def get_version(key, url, config):
+    api_key = key or get_configured_key(config)
+    api_url = url or get_configured_url(config)
+    return make_web_request(api_key, api_url+'/v1/version', 'get', None)
+
+
+def check_version(resp):
+    global warn_once
+    if not warn_once:
+        if resp.headers is not None and 'X-Warning' in resp.headers:
+            warn_once = True
+            print(resp.headers['X-Warning'])
 
 
 def retry_once(func):
@@ -36,6 +54,7 @@ async def make_async_web_request(client, key, url, http_method, json=None):
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + key,
+        "Lamini-Version": pkg_resources.get_distribution('lamini').version
     }
     assert http_method == "post" or http_method == "get"
     logger.debug(f"Making {http_method} request to {url} with payload {json}")
@@ -46,6 +65,7 @@ async def make_async_web_request(client, key, url, http_method, json=None):
                 headers=headers,
                 json=json,
             ) as resp:
+                check_version(resp)
                 if resp.status == 200:
                     json_response = await resp.json()
                     logger.debug("api response: " + str(json_response))
@@ -53,6 +73,7 @@ async def make_async_web_request(client, key, url, http_method, json=None):
                     await handle_error(resp)
         elif http_method == "get":
             async with client.get(url, headers=headers) as resp:
+                check_version(resp)
                 if resp.status == 200:
                     json_response = await resp.json()
                 else:
@@ -121,6 +142,7 @@ def make_web_request(key, url, http_method, json=None):
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + key,
+        "Lamini-Version": pkg_resources.get_distribution('lamini').version
     }
     if http_method == "post":
         resp = requests.post(url=url, headers=headers, json=json)
@@ -129,6 +151,7 @@ def make_web_request(key, url, http_method, json=None):
     else:
         raise Exception("http_method must be 'post' or 'get'")
     try:
+        check_version(resp)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         print("status code:", resp.status_code, url)
