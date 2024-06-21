@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.5.2"
+version = "2.5.3"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
@@ -20,11 +20,10 @@ dependencies = [
     "lamini-configuration[yaml]",
     "requests",
     "tqdm",
-    "numpy",
+    "numpy<2.0.0",
     "jsonlines",
     "pandas",
     "azure-storage-blob",
-    "scikit-learn",
     "aiohttp",
     "faiss-cpu",
 ]

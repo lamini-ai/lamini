@@ -1,10 +1,10 @@
 import asyncio
 import logging
+
 import aiohttp
 import lamini
 import requests
-import pkg_resources
-
+from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 from lamini.error.error import (
     APIError,
     APIUnprocessableContentError,
@@ -14,7 +14,6 @@ from lamini.error.error import (
     UnavailableResourceError,
     UserError,
 )
-from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +23,15 @@ warn_once = False
 def get_version(key, url, config):
     api_key = key or get_configured_key(config)
     api_url = url or get_configured_url(config)
-    return make_web_request(api_key, api_url+'/v1/version', 'get', None)
+    return make_web_request(api_key, api_url + "/v1/version", "get", None)
 
 
 def check_version(resp):
     global warn_once
     if not warn_once:
-        if resp.headers is not None and 'X-Warning' in resp.headers:
+        if resp.headers is not None and "X-Warning" in resp.headers:
             warn_once = True
-            print(resp.headers['X-Warning'])
+            print(resp.headers["X-Warning"])
 
 
 def retry_once(func):
@@ -51,11 +50,18 @@ def retry_once(func):
 
 @retry_once
 async def make_async_web_request(client, key, url, http_method, json=None):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + key,
-        "Lamini-Version": pkg_resources.get_distribution('lamini').version
-    }
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key,
+        }
+    except:
+        raise AuthenticationError("Missing API Key")
+    try:
+        version = importlib.metadata.version("lamini")
+        headers["Lamini-Version"] = version
+    except:
+        pass
     assert http_method == "post" or http_method == "get"
     logger.debug(f"Making {http_method} request to {url} with payload {json}")
     try:
@@ -139,11 +145,18 @@ async def handle_error(resp: aiohttp.ClientResponse):
 
 
 def make_web_request(key, url, http_method, json=None):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + key,
-        "Lamini-Version": pkg_resources.get_distribution('lamini').version
-    }
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key,
+        }
+    except:
+        raise AuthenticationError("Missing API Key")
+    try:
+        version = importlib.metadata.version("lamini")
+        headers["Lamini-Version"] = version
+    except:
+        pass
     if http_method == "post":
         resp = requests.post(url=url, headers=headers, json=json)
     elif http_method == "get":
