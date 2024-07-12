@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.5.4"
+version = "2.5.6a1"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
@@ -44,7 +44,6 @@ packages = [
     "lamini.evaluators.helm",
     "lamini.evaluators.utils",
     "lamini.index",
-    "llama",
 ]
 
 [tool.setuptools.package-data]

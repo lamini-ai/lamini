@@ -113,7 +113,7 @@ class Reservations:
         )
         logger.info("Made reservation " + str(reservation))
         if "dynamic_max_batch_size" not in reservation:
-            reservation["dynamic_max_batch_size"] = batch_size
+            reservation["dynamic_max_batch_size"] = lamini.batch_size
         self.current_reservation = reservation
         self.capacity_remaining = reservation["capacity_remaining"]
         self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]

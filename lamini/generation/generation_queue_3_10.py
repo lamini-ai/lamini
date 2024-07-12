@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import AsyncIterator, Iterator, Optional, TypeVar, Union
+from typing import AsyncIterator, Iterator, Optional, TypeVar, Union, Tuple, Any
 
 from lamini.generation.base_generation_queue import BaseGenerationQueue
 from lamini.generation.process_generation_batch import process_generation_batch
@@ -22,6 +22,13 @@ def get_global_inference_queue(api_key, api_url, config):
 
 
 class AppendableAsyncGenerator:
+    """Holds a async generator and a list, and prefer return elements in the list
+
+    Always first returns elements from the list.
+    This allows different priorities between items.
+    E.g., failed item can be appended, so that they would be retried first.
+    """
+
     def __init__(self, generator):
         self.generator = generator
         self.appendlist = []
@@ -42,7 +49,7 @@ class AppendableAsyncGenerator:
 class GenerationQueue(BaseGenerationQueue):
     async def submit(
         self,
-        request,
+        request: dict,
         token_optimizer: Optional[TokenOptimizer] = None,
     ):
         batches = self.form_batches(
@@ -62,6 +69,7 @@ class GenerationQueue(BaseGenerationQueue):
                     result[0]["batch"]["prompt"][0].error is not None
                     and len(result[0]["batch"]["prompt"][0].error) < 3
                 ):
+                    logger.debug(f"Retrying, prompt: {result[0]}")
                     batches.append(result[0])
 
                 for elem in result[0]["batch"]["prompt"]:
@@ -87,8 +95,8 @@ class GenerationQueue(BaseGenerationQueue):
         api_prefix,
         token_optimizer: Optional[TokenOptimizer],
     ):
-        batch_size = self.get_batch_size()
-        async for prompt in next_n(request["prompt"], batch_size):
+        batch_size_func = self.reservation_api.get_dynamic_max_batch_size
+        async for prompt in next_n_w_step_func(request["prompt"], batch_size_func):
             batch = request.copy()
             batch["prompt"] = prompt
             if token_optimizer is not None and "max_new_tokens" in batch:
@@ -106,12 +114,12 @@ class GenerationQueue(BaseGenerationQueue):
             }
 
 
-async def next_n(iterator: Union[AsyncIterator, Iterator], n: int):
+async def next_n_w_step_func(iterator: Union[AsyncIterator, Iterator], step_func):
     if isinstance(iterator, AsyncIterator):
-        async for x in async_chunks(iterator, n):
+        async for x in async_chunks(iterator, step_func):
             yield x
     elif isinstance(iterator, Iterator):
-        for x in chunks(iterator, n):
+        for x in chunks(iterator, step_func):
             yield x
     else:
         raise TypeError("iterator must be an iterator or an async iterator")
@@ -127,6 +135,7 @@ async def map_unordered(func, iterable, *, limit):
 
 
 async def limit_concurrency(aws, limit):
+    """Yields up-to a number of limit items from aws."""
     try:
         aws = aiter(aws)
         is_async = True
@@ -154,11 +163,11 @@ async def limit_concurrency(aws, limit):
             yield done.pop()
 
 
-def return_args_and_exceptions(func):
+def return_args_and_exceptions(func) -> Tuple[Any, Any]:
     return functools.partial(_return_args_and_exceptions, func)
 
 
-async def _return_args_and_exceptions(func, *args):
+async def _return_args_and_exceptions(func, *args) -> Tuple[Any, Any]:
     try:
         return *args, await func(*args)
     except Exception as e:
@@ -177,13 +186,14 @@ async def arange(start, stop=None, step=1):
 
 def chunks(
     iterator: Iterator[T],
-    size: int,
+    size_fn,
 ) -> Iterator[list[T]]:
     """Yield successive n-sized chunks from lst."""
     finished = False
 
     while not finished:
         results: list[T] = []
+        size = size_fn()
 
         for _ in range(size):
             try:
@@ -201,7 +211,7 @@ def chunks(
 
 async def async_chunks(
     async_iterator: AsyncIterator[T],
-    size: int,
+    size_fn,
 ) -> AsyncIterator[list[T]]:
     """Generate chunks from an asynchronous sequence.
 
@@ -214,6 +224,7 @@ async def async_chunks(
 
     while not finished:
         results: list[T] = []
+        size = size_fn()
 
         for _ in range(size):
             try:

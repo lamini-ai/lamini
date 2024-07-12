@@ -34,21 +34,6 @@ def check_version(resp):
             print(resp.headers["X-Warning"])
 
 
-def retry_once(func):
-    async def wrapped(*args, **kwargs):
-        try:
-            result = await func(*args, **kwargs)
-        except Exception as e:
-            if lamini.retry:
-                result = await func(*args, **kwargs)
-            else:
-                raise e
-        return result
-
-    return wrapped
-
-
-@retry_once
 async def make_async_web_request(client, key, url, http_method, json=None):
     try:
         headers = {

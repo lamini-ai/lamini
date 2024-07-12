@@ -8,7 +8,7 @@ from lamini.api.utils.reservations import get_reservation_api
 logger = logging.getLogger(__name__)
 
 
-async def process_generation_batch(args):
+async def process_generation_batch(args: dict):
     client = args["client"]
     key = args["key"]
     batch = args["batch"]
@@ -63,6 +63,7 @@ async def process_generation_batch(args):
 
 async def query_api(client, key, url, json, batch):
     if batch["type"] == "embedding":
+        # TODO: Replace make_async_web_request() with Completion.generate()
         result = await make_async_web_request(client, key, url, "post", json)
         result = result["embedding"]
     else:
@@ -70,7 +71,7 @@ async def query_api(client, key, url, json, batch):
     return result
 
 
-def get_url_from_args(args):
+def get_url_from_args(args: dict) -> str:
     api_prefix = args["api_prefix"]
     batch = args["batch"]
     if batch["type"] == "embedding":
@@ -80,7 +81,7 @@ def get_url_from_args(args):
     return url
 
 
-def get_body_from_args(batch, reservation_id):
+def get_body_from_args(batch: dict, reservation_id: str) -> dict:
     if batch["type"] == "embedding":
         json = {
             "model_name": batch["model_name"],

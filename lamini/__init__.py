@@ -8,7 +8,7 @@ from lamini.runners.llama_v3_runner import LlamaV3Runner
 from lamini.runners.basic_model_runner import BasicModelRunner
 from lamini.runners.mistral_runner import MistralRunner
 from lamini.api.lamini import Lamini
-from lamini.classify.lamini_classifier import LaminiClassifier, BinaryLaminiClassifier
+from lamini.classify.lamini_classifier import LaminiClassifier
 from lamini.api.classifier import Classifier
 from lamini.api.embedding import Embedding
 from lamini.generation.generation_node import GenerationNode
@@ -29,4 +29,3 @@ Find your LAMINI_API_KEY at https://app.lamini.ai/account"""
 
 max_workers = os.environ.get("LAMINI_MAX_WORKERS", 10)
 batch_size = os.environ.get("LAMINI_BATCH_SIZE", 5)
-retry = os.environ.get("LAMINI_RETRY", False)
