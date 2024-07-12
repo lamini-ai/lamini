@@ -6,6 +6,7 @@ from lamini.api.lamini_config import get_config
 from lamini.generation.base_node_object import BaseGenerationNode
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.generation.token_optimizer import TokenOptimizer
+from lamini.api.utils.iterators import async_iter
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +48,16 @@ class GenerationNode(BaseGenerationNode):
 
     def generate(
         self,
-        prompt: Union[Iterator[PromptObject], AsyncIterator[PromptObject]],
-        model_name: Optional[str] = None,
+        prompt: AsyncIterator[PromptObject],
         output_type: Optional[dict] = None,
-        max_tokens: Optional[int] = None,
-        max_new_tokens: Optional[int] = None,
     ):
-        assert isinstance(prompt, Iterator) or isinstance(prompt, AsyncIterator)
+        assert isinstance(prompt, AsyncIterator)
         req_data = self.make_llm_req_map(
             prompt=prompt,
-            model_name=model_name or self.model_name,
+            model_name=self.model_name,
             output_type=output_type,
-            max_tokens=max_tokens or self.max_tokens,
-            max_new_tokens=max_new_tokens or self.max_new_tokens,
+            max_tokens=self.max_tokens,
+            max_new_tokens=self.max_new_tokens,
         )
         return self.async_inference_queue.submit(req_data, self.token_optimizer)
 
@@ -84,41 +82,37 @@ class GenerationNode(BaseGenerationNode):
         return req_data
 
     async def transform_prompt(
-        self, prompt: Union[Iterator[PromptObject], AsyncIterator[PromptObject]]
+        self,
+        prompt_iterator: Union[Iterator[PromptObject], AsyncIterator[PromptObject]],
     ):
-        if isinstance(prompt, Iterator):
-            for a in prompt:
-                if hasattr(self, "preprocess"):
-                    mod_a = self.preprocess(a)
-                    if isinstance(mod_a, Generator):
-                        for a in mod_a:
-                            if a is not None:
-                                assert isinstance(a, PromptObject)
-                                yield a
-                        continue
-                    if mod_a is not None:
-                        a = mod_a
-                assert a is None or isinstance(a, PromptObject)
-                yield a
-        elif isinstance(prompt, AsyncIterator):
-            async for a in prompt:
-                if hasattr(self, "preprocess"):
-                    mod_a = self.preprocess(a)
-                    if isinstance(mod_a, Generator):
-                        for a in mod_a:
-                            if a is not None:
-                                assert isinstance(a, PromptObject)
-                                yield a
-                        continue
-                    if mod_a is not None:
-                        a = mod_a
-                assert a is None or isinstance(a, PromptObject)
-                yield a
-        else:
-            raise Exception("Invalid prompt type")
+        """Yield preprocess-ed prompt from the input prompt iterator"""
+        assert isinstance(prompt_iterator, Iterator) or isinstance(
+            prompt_iterator, AsyncIterator
+        )
 
-    async def process_results(self, results: AsyncIterator[PromptObject]):
-        async for a in results:
+        if isinstance(prompt_iterator, Iterator):
+            prompt_iterator = async_iter(prompt_iterator)
+
+        async for a in prompt_iterator:
+            if hasattr(self, "preprocess"):
+                mod_a = self.preprocess(a)
+                if isinstance(mod_a, Generator):
+                    for a in mod_a:
+                        if a is not None:
+                            assert isinstance(a, PromptObject)
+                            yield a
+                    continue
+                if mod_a is not None:
+                    a = mod_a
+            assert a is None or isinstance(a, PromptObject)
+            yield a
+
+    async def process_results(self, prompt_async_iter: AsyncIterator[PromptObject]):
+        """Processes results returned from self.generate()
+
+        results: AsyncIterator returned from self.generate().
+        """
+        async for a in prompt_async_iter:
             if a is None or a.response is None:
                 continue
             if hasattr(self, "postprocess"):

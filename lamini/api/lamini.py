@@ -8,13 +8,13 @@ from typing import Callable, Dict, Iterable, List, Optional, Union
 import jsonlines
 import pandas as pd
 from lamini.api.lamini_config import get_config
+from lamini.api.rest_requests import get_version
 from lamini.api.synchronize import sync
 from lamini.api.train import Train
 from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
 from lamini.generation.token_optimizer import TokenOptimizer
-from lamini.api.rest_requests import get_version
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +67,13 @@ class Lamini:
         metadata: Optional[List] = None,
     ):
         if isinstance(prompt, str) or (isinstance(prompt, list) and len(prompt) == 1):
-            req_data = self.make_llm_req_map(
+            result = self.completion.generate(
                 prompt=prompt,
                 model_name=model_name or self.model_name,
                 output_type=output_type,
                 max_tokens=max_tokens,
                 max_new_tokens=max_new_tokens,
             )
-            result = self.completion.generate(req_data)
             if output_type is None:
                 if isinstance(prompt, list) and len(prompt) == 1:
                     result = [single_result["output"] for single_result in result]
@@ -105,7 +104,7 @@ class Lamini:
         callback: Optional[Callable] = None,
         metadata: Optional[List] = None,
     ):
-        req_data = self.make_llm_req_map(
+        req_data = self.completion.make_llm_req_map(
             prompt=prompt,
             model_name=model_name or self.model_name,
             output_type=output_type,
@@ -361,22 +360,3 @@ class Lamini:
 
     def evaluate(self, job_id=None):
         return self.trainer.evaluate(job_id)
-
-    def make_llm_req_map(
-        self,
-        model_name,
-        prompt,
-        output_type,
-        max_tokens,
-        max_new_tokens,
-    ):
-        req_data = {}
-        req_data["model_name"] = model_name
-        req_data["prompt"] = prompt
-        req_data["output_type"] = output_type
-        req_data["max_tokens"] = max_tokens
-        if max_new_tokens is not None:
-            req_data["max_new_tokens"] = max_new_tokens
-        if self.model_config:
-            req_data["model_config"] = self.model_config.as_dict()
-        return req_data

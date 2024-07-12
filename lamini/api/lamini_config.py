@@ -69,7 +69,7 @@ def get_configured_url(config):
     if environment == "LOCAL":
         url = config.get("local.url", "http://localhost:5001")
     elif environment == "STAGING":
-        url = config.get("staging.url", "https://api.staging.powerml.co")
+        url = config.get("staging.url", "https://staging.lamini.ai")
     else:
         url = config.get("production.url", "https://api.lamini.ai")
     return url

@@ -37,6 +37,17 @@ class GenerationPipeline:
         )
 
     def forward(self, prompt: AsyncIterator) -> AsyncIterator:
+        """NOTE: You must implement this function.
+
+        Typical use:
+        class MyOwnPipeline(GenerationPipeline):
+            def forward(...):
+                ...
+        pipeline_results = MyOwnPipeline().call(...)
+        In your subclass, use GenerationNode, EmbeddingNode and their subclasses to
+         define pipeline nodes. The input and output of pipeline nodes should all
+         be async iterators.
+        """
         pass
 
     async def __call(
