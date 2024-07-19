@@ -41,7 +41,9 @@ async def process_generation_batch(args: dict):
         json = get_body_from_args(batch, reservation_id)
         result = await query_api(client, key, url, json, batch)
     except Exception as e:
-        logger.debug(f"Error in process_generation_batch {e}")
+        logger.debug(
+            f"Error in process_generation_batch, type: {type(e)}, message: {e}"
+        )
         for prompt_obj in batch["prompt"]:
             if prompt_obj.error is None:
                 prompt_obj.error = []

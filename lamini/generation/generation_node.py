@@ -39,6 +39,7 @@ class GenerationNode(BaseGenerationNode):
         self.model_config = self.config.get("model_config", None)
         self.max_tokens = max_tokens
         self.max_new_tokens = max_new_tokens
+        self.failed_prompts = []
 
     def __call__(self, prompt, *args, **kwargs):
         prompt = self.transform_prompt(prompt)
@@ -94,17 +95,33 @@ class GenerationNode(BaseGenerationNode):
             prompt_iterator = async_iter(prompt_iterator)
 
         async for a in prompt_iterator:
+            # For all the input PromptObject, keep a copy to the first prompt
+            # if it's not set yet.
+            def set_orig_prompt(
+                target_prompt: PromptObject, set_from_prompt: PromptObject
+            ):
+                if target_prompt.orig_prompt is None:
+                    target_prompt.orig_prompt = PromptObject(
+                        prompt=set_from_prompt.prompt, data=set_from_prompt.data
+                    )
+
+            set_orig_prompt(a, a)
             if hasattr(self, "preprocess"):
                 mod_a = self.preprocess(a)
                 if isinstance(mod_a, Generator):
-                    for a in mod_a:
-                        if a is not None:
-                            assert isinstance(a, PromptObject)
-                            yield a
+                    for res in mod_a:
+                        if res is not None:
+                            assert isinstance(res, PromptObject)
+                            set_orig_prompt(res, a)
+                            yield res
                     continue
                 if mod_a is not None:
+                    if a.orig_prompt is None:
+                        set_orig_prompt(mod_a, a)
+                    else:
+                        mod_a.orig_prompt = a.orig_prompt
                     a = mod_a
-            assert a is None or isinstance(a, PromptObject)
+            assert isinstance(a, PromptObject)
             yield a
 
     async def process_results(self, prompt_async_iter: AsyncIterator[PromptObject]):
@@ -113,17 +130,24 @@ class GenerationNode(BaseGenerationNode):
         results: AsyncIterator returned from self.generate().
         """
         async for a in prompt_async_iter:
-            if a is None or a.response is None:
+            assert a is not None
+            if a.response is None and len(a.error) > 0:
+                # Result from the generation call to remote LLM inference API
+                # failed, record the prompt.
+                self.failed_prompts.append(a)
                 continue
             if hasattr(self, "postprocess"):
                 mod_a = self.postprocess(a)
                 if isinstance(mod_a, Generator):
-                    for a in mod_a:
-                        if a is not None:
-                            assert isinstance(a, PromptObject)
-                            yield a
+                    for res in mod_a:
+                        if res is not None:
+                            assert isinstance(res, PromptObject)
+                            # The original prompt was already recorded in the preprocess stage.
+                            res.orig_prompt = a.orig_prompt
+                            yield res
                     continue
                 if mod_a is not None:
+                    mod_a.orig_prompt = a.orig_prompt
                     a = mod_a
             assert a is None or isinstance(a, PromptObject)
             yield a
