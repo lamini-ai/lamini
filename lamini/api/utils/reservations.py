@@ -64,7 +64,7 @@ class Reservations:
                     "batch_size": batch_size,
                 },
             )
-            logger.info("Made reservation " + str(reservation))
+            logger.info("Made initial reservation " + str(reservation))
             if "dynamic_max_batch_size" not in reservation:
                 reservation["dynamic_max_batch_size"] = batch_size
             self.current_reservation = reservation
@@ -72,7 +72,9 @@ class Reservations:
             self.model_name = model_name
             self.max_tokens = max_tokens
             self.capacity_remaining = reservation["capacity_remaining"]
-            self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
+            self.dynamic_max_batch_size = min(
+                reservation["dynamic_max_batch_size"], reservation["capacity_remaining"]
+            )
             self.is_working = True
             self.batch_size = batch_size
         except Exception as e:

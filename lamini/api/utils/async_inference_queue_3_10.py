@@ -314,6 +314,9 @@ async def limit_concurrency(
     aws_ended = False
     pending = set()
 
+    # TODO: there is a bug here, see
+    # test_limit_concurrency_with_append_more_worker_than_items()
+    # in sdk/test/lamini/generation/test_generation_queue_3_10.py.
     while pending or not aws_ended:
         while len(pending) < limit and not aws_ended:
             try:

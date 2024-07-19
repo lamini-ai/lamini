@@ -3,6 +3,8 @@ import functools
 import logging
 from typing import AsyncIterator, Iterator, Optional, TypeVar, Union, Tuple, Any
 
+import lamini
+
 from lamini.generation.base_generation_queue import BaseGenerationQueue
 from lamini.generation.process_generation_batch import process_generation_batch
 from lamini.generation.token_optimizer import TokenOptimizer
@@ -67,14 +69,17 @@ class GenerationQueue(BaseGenerationQueue):
             if isinstance(result[1], Exception):
                 if (
                     result[0]["batch"]["prompt"][0].error is not None
-                    and len(result[0]["batch"]["prompt"][0].error) < 3
+                    and len(result[0]["batch"]["prompt"][0].error)
+                    < self.get_retry_limit()
                 ):
-                    logger.debug(f"Retrying, prompt: {result[0]}")
+                    logger.debug(
+                        f"Retrying up to {self.get_retry_limit()}, prompt: {result[0]}"
+                    )
                     batches.append(result[0])
-
-                for elem in result[0]["batch"]["prompt"]:
-                    yield None  # yielding when error should yield None
-                continue
+                    # Retried prompt batch is not yielded.
+                    # They will eventually be yielded if 1) succeed within retry limit
+                    # or fail even after retry.
+                    continue
 
             for elem in result[0]["batch"]["prompt"]:
                 yield elem

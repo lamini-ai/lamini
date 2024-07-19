@@ -31,6 +31,9 @@ class BaseGenerationQueue:
     def get_batch_size(self):
         return int(lamini.batch_size)
 
+    def get_retry_limit(self):
+        return int(lamini.retry_limit)
+
     def __del__(self):
         if self.reservation_polling_task is not None:
             self.reservation_polling_task.cancel()
