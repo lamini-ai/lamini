@@ -1,9 +1,9 @@
-import aiohttp
 import asyncio
 import importlib.metadata
 import logging
-import requests
 
+import aiohttp
+import requests
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
 from lamini.error.error import (
     APIError,

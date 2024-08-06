@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import pickle
@@ -13,8 +14,6 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger().setLevel(logging.DEBUG)
 
 class LaminiClassifier:
     """A zero shot classifier that uses the Lamini LlamaV2Runner to generate
@@ -24,17 +23,15 @@ class LaminiClassifier:
 
     def __init__(
         self,
-        config: dict = {},
-        model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
+        model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
         augmented_example_count: int = 10,
         batch_size: int = 10,
         threads: int = 1,
-        saved_examples_path: str = "/tmp/saved_examples.jsonl",
+        saved_examples_path: str = "saved_examples.jsonl",
         generator_from_prompt=None,
         example_modifier=None,
         example_expander=None,
     ):
-        self.config = config
         self.model_name = model_name
         self.augmented_example_count = augmented_example_count
         self.batch_size = batch_size
@@ -65,7 +62,6 @@ class LaminiClassifier:
 
         First, augment the examples for each class using the prompts.
         """
-
         for class_name, prompt in prompts.items():
             try:
                 logger.info(
@@ -74,9 +70,8 @@ class LaminiClassifier:
                 self.add_class(class_name)
 
                 result = self.generate_examples_from_prompt(
-                    class_name,
-                    prompt,
-                    self.examples.get(class_name, []))
+                    class_name, prompt, self.examples.get(class_name, [])
+                )
 
                 self.examples[class_name] = result
 
@@ -86,7 +81,6 @@ class LaminiClassifier:
             except Exception as e:
                 logger.error(f"Failed to generate examples for class {class_name}")
                 logger.error(e)
-                logger.error(generated_examples.exception())
                 logger.error(
                     "Consider rerunning the generation task if the error is transient, e.g. 500"
                 )
@@ -138,7 +132,7 @@ class LaminiClassifier:
         if isinstance(examples, str):
             examples = [examples]
 
-        embed = Embedding(self.config)
+        embed = Embedding()
         embeddings = embed.generate(examples)
         return [embedding[0] for embedding in embeddings]
 
@@ -243,18 +237,14 @@ class LaminiClassifier:
     def create_new_example_generator(self, prompt, original_examples):
         example_generator = self.generator_from_prompt(
             prompt,
-            config=self.config,
             model_name=self.model_name,
             batch_size=self.batch_size // 5,
         )
         example_modifier = self.example_modifier(
-            config=self.config,
             model_name=self.model_name,
             batch_size=self.batch_size // 5,
         )
-        example_expander = self.example_expander(
-            prompt, config=self.config, model_name=self.model_name
-        )
+        example_expander = self.example_expander(prompt, model_name=self.model_name)
 
         examples = original_examples.copy()
 
@@ -379,12 +369,10 @@ class DefaultExampleGenerator:
     def __init__(
         self,
         prompt,
-        config=None,
-        model_name="meta-llama/Meta-Llama-3-8B-Instruct",
+        model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
         batch_size=10,
     ):
         self.prompt = prompt
-        self.config = config
         self.example_count = 5
         self.model_name = model_name
         self.batch_size = batch_size
@@ -392,11 +380,9 @@ class DefaultExampleGenerator:
         self.max_history = 2
 
     def generate_examples(self, seed, examples):
-        prompt_batch = self.get_prompts(
-            seed=seed, examples=examples
-        )
+        prompt_batch = self.get_prompts(seed=seed, examples=examples)
 
-        runner = Lamini(config=self.config, model_name=self.model_name)
+        runner = Lamini(model_name=self.model_name)
 
         results = runner.generate(
             prompt=prompt_batch,
@@ -444,19 +430,18 @@ class DefaultExampleGenerator:
 
     def parse_result(self, result):
         return [
-                result["example_1"],
-                result["example_2"],
-                result["example_3"],
-            ]
+            result["example_1"],
+            result["example_2"],
+            result["example_3"],
+        ]
+
 
 class DefaultExampleModifier:
     def __init__(
         self,
-        config=None,
-        model_name="meta-llama/Meta-Llama-3-8B-Instruct",
+        model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
         batch_size=10,
     ):
-        self.config = config
         self.model_name = model_name
         self.required_examples = 5
         self.batch_size = batch_size
@@ -464,7 +449,7 @@ class DefaultExampleModifier:
     def modify_examples(self, examples):
         prompts = self.get_prompts(examples)
 
-        runner = Lamini(config=self.config, model_name=self.model_name)
+        runner = Lamini(model_name=self.model_name)
 
         results = runner.generate(
             prompt=prompts,
@@ -526,15 +511,12 @@ class DefaultExampleModifier:
 
 
 class DefaultExampleExpander:
-    def __init__(
-        self, prompt, config=None, model_name="meta-llama/Meta-Llama-3-8B-Instruct"
-    ):
+    def __init__(self, prompt, model_name="meta-llama/Meta-Llama-3.1-8B-Instruct"):
         self.prompt = prompt
-        self.config = config
         self.model_name = model_name
 
     def expand_example(self, example_batch):
-        runner = Lamini(config=self.config, model_name=self.model_name)
+        runner = Lamini(model_name=self.model_name)
 
         prompts = self.get_prompts(example_batch)
 

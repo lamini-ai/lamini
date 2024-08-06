@@ -10,25 +10,15 @@ from lamini.api.rest_requests import make_async_web_request, make_web_request
 
 logger = logging.getLogger(__name__)
 
-reservation_api = None
-
-
-def create_reservation_api(api_key, api_url, config):
-    global reservation_api
-    if reservation_api is None:
-        reservation_api = Reservations(api_key, api_url, config)
-    return reservation_api
-
-
-def get_reservation_api():
-    global reservation_api
-    assert reservation_api is not None
-    return reservation_api
-
 
 class Reservations:
-    def __init__(self, api_key: str = None, api_url: str = None, config={}):
-        self.config = get_config(config)
+    def __init__(
+        self,
+        api_key: str = None,
+        api_url: str = None,
+        variable_capacity=False,
+    ):
+        self.config = get_config()
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
         self.api_prefix = self.api_url + "/v1/reservation"
@@ -41,13 +31,10 @@ class Reservations:
         self.polling_task = None
         self.poll_for_reservation = asyncio.Event()
         self.is_polling = False
+        self.variable_capacity = variable_capacity
 
     def initialize_reservation(
-        self,
-        capacity: int,
-        model_name: Optional[str] = None,
-        batch_size: Optional[int] = None,
-        max_tokens: Optional[int] = None,
+        self, capacity: int, model_name: str, batch_size: int, max_tokens: Optional[int]
     ):
         try:
             logger.info(
@@ -65,8 +52,6 @@ class Reservations:
                 },
             )
             logger.info("Made initial reservation " + str(reservation))
-            if "dynamic_max_batch_size" not in reservation:
-                reservation["dynamic_max_batch_size"] = batch_size
             self.current_reservation = reservation
             self.capacity_needed = capacity
             self.model_name = model_name
@@ -75,8 +60,11 @@ class Reservations:
             self.dynamic_max_batch_size = min(
                 reservation["dynamic_max_batch_size"], reservation["capacity_remaining"]
             )
+            if self.variable_capacity:
+                self.capacity_needed = self.dynamic_max_batch_size * lamini.max_workers
             self.is_working = True
             self.batch_size = batch_size
+
         except Exception as e:
             logger.warning(f"Error making reservation, continuing without one. {e}")
             self.current_reservation = None
@@ -110,15 +98,15 @@ class Reservations:
                 "capacity": max(self.capacity_needed, self.batch_size),
                 "model_name": self.model_name,
                 "max_tokens": self.max_tokens,
-                "batch_size": self.batch_size,
+                "batch_size": self.get_dynamic_max_batch_size(),
             },
         )
         logger.info("Made reservation " + str(reservation))
-        if "dynamic_max_batch_size" not in reservation:
-            reservation["dynamic_max_batch_size"] = lamini.batch_size
         self.current_reservation = reservation
         self.capacity_remaining = reservation["capacity_remaining"]
         self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
+        if self.variable_capacity:
+            self.capacity_needed = self.dynamic_max_batch_size * lamini.max_workers
         async with self.condition:
             self.condition.notify(len(self.condition._waiters))
         self.is_polling = False
@@ -126,16 +114,36 @@ class Reservations:
             self.polling_task = asyncio.create_task(
                 self.kickoff_reservation_polling(client)
             )
-            _ = asyncio.create_task(self.timer_based_polling(reservation["end_time"]))
+            logger.info("Made reservation " + str(reservation))
+            if "dynamic_max_batch_size" not in reservation:
+                reservation["dynamic_max_batch_size"] = lamini.batch_size
+            self.current_reservation = reservation
+            self.capacity_remaining = reservation["capacity_remaining"]
+            self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
+            if self.variable_capacity:
+                self.capacity_needed = self.dynamic_max_batch_size * lamini.max_workers
+            async with self.condition:
+                self.condition.notify(len(self.condition._waiters))
+            self.is_polling = False
+            if self.is_working:
+                self.polling_task = asyncio.create_task(
+                    self.kickoff_reservation_polling(client)
+                )
+                _ = asyncio.create_task(
+                    self.timer_based_polling(reservation["end_time"])
+                )
 
     async def timer_based_polling(self, wakeup_time):
-        current_time = datetime.datetime.utcnow()
-        end_time = datetime.datetime.fromisoformat(wakeup_time)
-        sleep_time = end_time - current_time
-        if sleep_time.total_seconds() > 0:
-            logger.debug("timer_based_polling sleep time: " + str(sleep_time))
-            await asyncio.sleep(sleep_time.total_seconds())
-            self.poll_for_reservation.set()
+        try:
+            current_time = datetime.datetime.utcnow()
+            end_time = datetime.datetime.fromisoformat(wakeup_time)
+            sleep_time = end_time - current_time
+            if sleep_time.total_seconds() > 0:
+                logger.debug("timer_based_polling sleep time: " + str(sleep_time))
+                await asyncio.sleep(sleep_time.total_seconds())
+                self.poll_for_reservation.set()
+        except asyncio.CancelledError:
+            logger.debug("Task was cancelled")
 
     async def kickoff_reservation_polling(self, client):
         if self.current_reservation is None:
@@ -169,9 +177,12 @@ class Reservations:
             return
         self.capacity_needed -= queries
 
+    def get_dynamic_max_batch_size(self):
+        if lamini.static_batching:
+            return self.batch_size
+
+        return self.dynamic_max_batch_size
+
     def __del__(self):
         if self.polling_task is not None:
             self.polling_task.cancel()
-
-    def get_dynamic_max_batch_size(self):
-        return self.dynamic_max_batch_size

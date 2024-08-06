@@ -14,7 +14,7 @@ class LlamaV2Runner(BaseRunner):
 
     def __init__(
         self,
-        model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
+        model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
         system_prompt: str = None,
         prompt_template="<s>[INST] <<SYS>>\n{system}\n<</SYS>>\n\n{user} [/INST]",
         api_key=None,

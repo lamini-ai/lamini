@@ -22,7 +22,6 @@ class BaseRunner:
             model_name=model_name,
             api_key=api_key,
             api_url=api_url,
-            config=self.config,
             local_cache_file=local_cache_file,
         )
         self.prompt_template = prompt_template

@@ -1,9 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import AsyncIterator, Iterator, Optional, TypeVar, Union, Tuple, Any
-
-import lamini
+from typing import Any, AsyncIterator, Iterator, Optional, Tuple, TypeVar, Union
 
 from lamini.generation.base_generation_queue import BaseGenerationQueue
 from lamini.generation.process_generation_batch import process_generation_batch
@@ -16,10 +14,10 @@ logger = logging.getLogger(__name__)
 global_inference_queue = None
 
 
-def get_global_inference_queue(api_key, api_url, config):
+def get_global_inference_queue(api_key, api_url):
     global global_inference_queue
     if global_inference_queue is None or global_inference_queue.client.closed:
-        global_inference_queue = GenerationQueue(api_key, api_url, config=config)
+        global_inference_queue = GenerationQueue(api_key, api_url)
     return global_inference_queue
 
 
@@ -49,6 +47,9 @@ class AppendableAsyncGenerator:
 
 
 class GenerationQueue(BaseGenerationQueue):
+    def __init__(self, *args, **kwargs):
+        super().__init__(variable_capacity=True, *args, **kwargs)
+
     async def submit(
         self,
         request: dict,
@@ -67,11 +68,8 @@ class GenerationQueue(BaseGenerationQueue):
 
         async for result in async_iterator:
             if isinstance(result[1], Exception):
-                if (
-                    result[0]["batch"]["prompt"][0].error is not None
-                    and len(result[0]["batch"]["prompt"][0].error)
-                    < self.get_retry_limit()
-                ):
+                logger.debug(f"exception: {result[1]}")
+                if len(result[0]["batch"]["prompt"][0].error) < self.get_retry_limit():
                     logger.debug(
                         f"Retrying up to {self.get_retry_limit()}, prompt: {result[0]}"
                     )
@@ -100,7 +98,7 @@ class GenerationQueue(BaseGenerationQueue):
         api_prefix,
         token_optimizer: Optional[TokenOptimizer],
     ):
-        batch_size_func = self.reservation_api.get_dynamic_max_batch_size
+        batch_size_func = self.get_dynamic_max_batch_size
         async for prompt in next_n_w_step_func(request["prompt"], batch_size_func):
             batch = request.copy()
             batch["prompt"] = prompt
@@ -116,6 +114,7 @@ class GenerationQueue(BaseGenerationQueue):
                 "key": key,
                 "batch": batch,
                 "client": client,
+                "reservation_api": self.reservation_api,
             }
 
 
@@ -151,6 +150,7 @@ async def limit_concurrency(aws, limit):
     aws_ended = False
     pending = set()
 
+    # TODO: there is a bug here, see https://github.com/lamini-ai/lamini-platform/issues/2899
     while pending or not aws_ended:
         while len(pending) < limit and not aws_ended:
             try:
@@ -230,7 +230,7 @@ async def async_chunks(
     while not finished:
         results: list[T] = []
         size = size_fn()
-
+        assert size != 0
         for _ in range(size):
             try:
                 result = None

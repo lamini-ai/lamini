@@ -1,20 +1,16 @@
 import json
 import logging
 import os
-import sys
 import time
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 import jsonlines
 import pandas as pd
 from lamini.api.lamini_config import get_config
 from lamini.api.rest_requests import get_version
-from lamini.api.synchronize import sync
 from lamini.api.train import Train
-from lamini.api.utils.async_inference_queue import AsyncInferenceQueue
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
-from lamini.generation.token_optimizer import TokenOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -25,33 +21,15 @@ class Lamini:
         model_name: str,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None,
-        local_cache_file: Optional[str] = None,
-        config: dict = {},
     ):
-        self.config = get_config(config)
+        self.config = get_config()
         self.model_name = model_name
         self.api_key = api_key
         self.api_url = api_url
-        if sys.version_info >= (3, 10):
-            logger.info("Using 3.10 InferenceQueue Interface")
-            from lamini.api.utils.async_inference_queue_3_10 import (
-                AsyncInferenceQueue as AsyncInferenceQueue310,
-            )
-
-            self.async_inference_queue = AsyncInferenceQueue310(
-                api_key, api_url, config=config
-            )
-        else:
-            self.async_inference_queue = AsyncInferenceQueue(
-                api_key, api_url, config=config
-            )
-
-        self.completion = Completion(api_key, api_url, config=config)
-        self.trainer = Train(api_key, api_url, config=config)
+        self.completion = Completion(api_key, api_url)
+        self.trainer = Train(api_key, api_url)
         self.upload_file_path = None
         self.upload_base_path = None
-        self.local_cache_file = local_cache_file
-        self.model_config = self.config.get("model_config", None)
 
     def version(self):
         return get_version(self.api_key, self.api_url, self.config)
@@ -63,36 +41,20 @@ class Lamini:
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
-        callback: Optional[Callable] = None,
-        metadata: Optional[List] = None,
     ):
-        if isinstance(prompt, str) or (isinstance(prompt, list) and len(prompt) == 1):
-            result = self.completion.generate(
-                prompt=prompt,
-                model_name=model_name or self.model_name,
-                output_type=output_type,
-                max_tokens=max_tokens,
-                max_new_tokens=max_new_tokens,
-            )
-            if output_type is None:
-                if isinstance(prompt, list) and len(prompt) == 1:
-                    result = [single_result["output"] for single_result in result]
-                else:
-                    result = result["output"]
-            return result
-
-        assert isinstance(prompt, list)
-        return sync(
-            self.async_generate(
-                prompt=prompt,
-                model_name=model_name,
-                output_type=output_type,
-                max_tokens=max_tokens,
-                max_new_tokens=max_new_tokens,
-                callback=callback,
-                metadata=metadata,
-            )
+        result = self.completion.generate(
+            prompt=prompt,
+            model_name=model_name or self.model_name,
+            output_type=output_type,
+            max_tokens=max_tokens,
+            max_new_tokens=max_new_tokens,
         )
+        if output_type is None:
+            if isinstance(prompt, list):
+                result = [single_result["output"] for single_result in result]
+            else:
+                result = result["output"]
+        return result
 
     async def async_generate(
         self,
@@ -101,8 +63,6 @@ class Lamini:
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
-        callback: Optional[Callable] = None,
-        metadata: Optional[List] = None,
     ):
         req_data = self.completion.make_llm_req_map(
             prompt=prompt,
@@ -111,32 +71,13 @@ class Lamini:
             max_tokens=max_tokens,
             max_new_tokens=max_new_tokens,
         )
-
-        if isinstance(prompt, str) or (isinstance(prompt, list) and len(prompt) == 1):
-            result = await self.completion.async_generate(req_data)
-            if output_type is None:
-                if isinstance(prompt, list) and len(prompt) == 1:
-                    result = [single_result["output"] for single_result in result]
-                else:
-                    result = result["output"]
-            return result
-
-        assert isinstance(prompt, list)
-        if metadata is not None:
-            assert isinstance(metadata, list)
-            assert len(metadata) == len(prompt)
-        results = await self.async_inference_queue.submit(
-            req_data,
-            self.local_cache_file,
-            callback,
-            metadata,
-            token_optimizer=TokenOptimizer(model_name or self.model_name),
-        )
-
+        result = await self.completion.async_generate(req_data)
         if output_type is None:
-            results = [single_result["output"] for single_result in results]
-
-        return results
+            if isinstance(prompt, list):
+                result = [single_result["output"] for single_result in result]
+            else:
+                result = result["output"]
+        return result
 
     def upload_data(
         self,
@@ -245,7 +186,6 @@ class Lamini:
         ],
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
-        enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
@@ -269,7 +209,6 @@ class Lamini:
             upload_file_path=self.upload_file_path,
             finetune_args=finetune_args,
             gpu_config=gpu_config,
-            enable_peft=enable_peft,
             peft_args=peft_args,
             is_public=is_public,
             use_cached_model=use_cached_model,
@@ -289,7 +228,6 @@ class Lamini:
         ],
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
-        enable_peft: Optional[bool] = None,
         peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
         use_cached_model: Optional[bool] = None,
@@ -300,7 +238,6 @@ class Lamini:
             data_or_dataset_id,
             finetune_args=finetune_args,
             gpu_config=gpu_config,
-            enable_peft=enable_peft,
             peft_args=peft_args,
             is_public=is_public,
             use_cached_model=use_cached_model,

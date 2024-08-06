@@ -104,9 +104,8 @@ class StreamingCompletion:
         self,
         api_key: str = None,
         api_url: str = None,
-        config={},
     ):
-        self.config = get_config(config)
+        self.config = get_config()
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
         self.api_prefix = self.api_url + "/v1/"

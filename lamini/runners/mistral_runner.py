@@ -9,7 +9,7 @@ DEFAULT_SYSTEM_PROMPT = "Always assist with care, respect, and truth. Respond wi
 class MistralRunner(BaseRunner):
     def __init__(
         self,
-        model_name="mistralai/Mistral-7B-Instruct-v0.2",
+        model_name="mistralai/Mistral-7B-Instruct-v0.3",
         system_prompt: str = None,
         prompt_template="<s>[INST] {system} {user} [/INST]",
         api_key=None,

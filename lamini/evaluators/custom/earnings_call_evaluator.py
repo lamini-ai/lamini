@@ -57,8 +57,8 @@ class EarningsCallEvaluator:
 class EarningsPipeline(GenerationPipeline):
     def __init__(
         self,
-        answer_model="mistralai/Mistral-7B-Instruct-v0.2",
-        score_model="mistralai/Mistral-7B-Instruct-v0.2",
+        answer_model="mistralai/Mistral-7B-Instruct-v0.3",
+        score_model="mistralai/Mistral-7B-Instruct-v0.3",
     ):
         super(EarningsPipeline, self).__init__()
 
@@ -72,7 +72,7 @@ class EarningsPipeline(GenerationPipeline):
 
 
 class EarningsAnswerGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(EarningsAnswerGenerator, self).__init__(model_name)
 
     def generate(
@@ -128,7 +128,7 @@ class EarningsAnswerGenerator(GenerationNode):
 
 
 class EarningsScoreGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(EarningsScoreGenerator, self).__init__(model_name=model_name)
 
     def generate(

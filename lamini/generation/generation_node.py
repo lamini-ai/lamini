@@ -3,10 +3,10 @@ import sys
 from typing import AsyncIterator, Generator, Iterator, Optional, Union
 
 from lamini.api.lamini_config import get_config
+from lamini.api.utils.iterators import async_iter
 from lamini.generation.base_node_object import BaseGenerationNode
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.generation.token_optimizer import TokenOptimizer
-from lamini.api.utils.iterators import async_iter
 
 logger = logging.getLogger(__name__)
 
@@ -17,29 +17,13 @@ class GenerationNode(BaseGenerationNode):
         model_name: str,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
-        api_key: Optional[str] = None,
-        api_url: Optional[str] = None,
-        config: dict = {},
     ):
-        self.config = get_config(config)
         self.model_name = model_name
         self.token_optimizer = TokenOptimizer(model_name)
-        if sys.version_info >= (3, 10):
-            logger.info("Using 3.10 InferenceQueue Interface")
-            from lamini.generation.generation_queue_3_10 import (
-                get_global_inference_queue as get_global_inference_queue_3_10,
-            )
-
-            self.async_inference_queue = get_global_inference_queue_3_10(
-                api_key, api_url, config=config
-            )
-        else:
-            raise Exception("Must use Python 3.10 or greater for this feature")
-
-        self.model_config = self.config.get("model_config", None)
         self.max_tokens = max_tokens
         self.max_new_tokens = max_new_tokens
         self.failed_prompts = []
+        self.async_inference_queue = None
 
     def __call__(self, prompt, *args, **kwargs):
         prompt = self.transform_prompt(prompt)
@@ -60,6 +44,7 @@ class GenerationNode(BaseGenerationNode):
             max_tokens=self.max_tokens,
             max_new_tokens=self.max_new_tokens,
         )
+        assert self.async_inference_queue is not None
         return self.async_inference_queue.submit(req_data, self.token_optimizer)
 
     def make_llm_req_map(
@@ -77,8 +62,6 @@ class GenerationNode(BaseGenerationNode):
         req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens
-        if self.model_config:
-            req_data["model_config"] = self.model_config.as_dict()
         req_data["type"] = "completion"
         return req_data
 
