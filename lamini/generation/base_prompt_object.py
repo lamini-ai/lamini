@@ -4,10 +4,10 @@ from typing import Any
 class PromptObject:
     def __init__(self, prompt: str, response: str = None, data: dict = {}) -> None:
         assert isinstance(prompt, str)
-        assert isinstance(data, dict)
+        #        assert isinstance(data, dict)
         self.prompt = prompt
         self.response = response
-        self.error = None
+        self.error = []
         self.data = data
         # Records the input prompt to the first node of the pipeline.
         self.orig_prompt: PromptObject = None

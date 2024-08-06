@@ -56,8 +56,8 @@ class EcommerceEvaluator:
 class AnswerScorePipeline(GenerationPipeline):
     def __init__(
         self,
-        answer_model="mistralai/Mistral-7B-Instruct-v0.2",
-        score_model="mistralai/Mistral-7B-Instruct-v0.2",
+        answer_model="mistralai/Mistral-7B-Instruct-v0.3",
+        score_model="mistralai/Mistral-7B-Instruct-v0.3",
     ):
         super(AnswerScorePipeline, self).__init__()
 
@@ -71,7 +71,7 @@ class AnswerScorePipeline(GenerationPipeline):
 
 
 class AnswerGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(AnswerGenerator, self).__init__(model_name, max_new_tokens=150)
 
     def generate(
@@ -123,7 +123,7 @@ class AnswerGenerator(GenerationNode):
 
 
 class ScoreGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(ScoreGenerator, self).__init__(model_name=model_name, max_new_tokens=150)
 
     def generate(

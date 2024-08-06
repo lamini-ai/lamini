@@ -12,9 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class LaminiIndex:
-    def __init__(self, config={}):
-        self.config = config
-        self.embedding_api = Embedding(self.config)
+    def __init__(self):
+        self.embedding_api = Embedding()
         self.index = None
         self.splits = []
 

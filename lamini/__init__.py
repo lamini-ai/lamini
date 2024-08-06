@@ -8,9 +8,9 @@ from lamini.runners.llama_v3_runner import LlamaV3Runner
 from lamini.runners.basic_model_runner import BasicModelRunner
 from lamini.runners.mistral_runner import MistralRunner
 from lamini.api.lamini import Lamini
-from lamini.classify.lamini_classifier import LaminiClassifier
 from lamini.api.classifier import Classifier
 from lamini.api.embedding import Embedding
+from lamini.classify.lamini_classifier import LaminiClassifier
 from lamini.generation.generation_node import GenerationNode
 from lamini.generation.generation_pipeline import GenerationPipeline
 from lamini.generation.base_prompt_object import PromptObject
@@ -27,7 +27,8 @@ Please set it as an environment variable LAMINI_API_KEY, set it as lamini.api_ke
 Find your LAMINI_API_KEY at https://app.lamini.ai/account"""
 
 # When inference call failed, how much retry should we perform.
-retry_limit = os.environ.get("LAMINI_RETRY_LIMIT", 3)
+retry_limit = int(os.environ.get("LAMINI_RETRY_LIMIT", 3))
 
-max_workers = os.environ.get("LAMINI_MAX_WORKERS", 10)
-batch_size = os.environ.get("LAMINI_BATCH_SIZE", 5)
+max_workers = int(os.environ.get("LAMINI_MAX_WORKERS", 4))
+batch_size = int(os.environ.get("LAMINI_BATCH_SIZE", 5))
+static_batching = bool(os.environ.get("LAMINI_STATIC_BATCHING", False))

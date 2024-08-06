@@ -8,11 +8,9 @@ from lamini.api.rest_requests import make_web_request
 
 
 class Classifier:
-    def __init__(
-        self, model_id: int = None, api_key: str = None, api_url: str = None, config={}
-    ):
+    def __init__(self, model_id: int = None, api_key: str = None, api_url: str = None):
         self.model_id = model_id
-        self.config = get_config(config)
+        self.config = get_config()
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
         self.api_prefix = self.api_url + "/v1/classifier"

@@ -22,7 +22,6 @@ class Benchmark:
             model_name=self.model_name,
             api_key=api_key,
             api_url=api_url,
-            config=config,
         )
 
     def _get_task_names(self, tasks):

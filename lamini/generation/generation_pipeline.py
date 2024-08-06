@@ -4,9 +4,7 @@ import sys
 from typing import AsyncIterator, Iterator, Optional
 
 import lamini
-from lamini.api.utils.reservations import create_reservation_api
 from lamini.generation.base_node_object import BaseGenerationNode
-from lamini.generation.token_optimizer import TokenOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -16,25 +14,9 @@ class GenerationPipeline:
         self,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None,
-        config: dict = {},
     ):
         self.api_key = api_key
         self.api_url = api_url
-        self.config = config
-        if sys.version_info >= (3, 10):
-            logger.info("Using 3.10 InferenceQueue Interface")
-            from lamini.generation.generation_queue_3_10 import (
-                get_global_inference_queue as get_global_inference_queue_3_10,
-            )
-
-            self.async_inference_queue = get_global_inference_queue_3_10(
-                api_key, api_url, config=config
-            )
-        else:
-            raise Exception("Must use Python 3.10 or greater for this feature")
-        self.reservation_api = create_reservation_api(
-            self.api_key, self.api_url, self.config
-        )
 
     def forward(self, prompt: AsyncIterator) -> AsyncIterator:
         """NOTE: You must implement this function.
@@ -54,28 +36,40 @@ class GenerationPipeline:
         self,
         prompt: AsyncIterator,
     ) -> AsyncIterator:
-        assert isinstance(prompt, Iterator) or isinstance(prompt, AsyncIterator)
-        iterator = self.forward(prompt)
-        assert isinstance(iterator, AsyncIterator)
+        if sys.version_info >= (3, 10):
+            logger.info("Using 3.10 InferenceQueue Interface")
+            from lamini.generation.generation_queue_3_10 import (
+                get_global_inference_queue as get_global_inference_queue_3_10,
+            )
 
+            self.async_inference_queue = get_global_inference_queue_3_10(
+                self.api_key,
+                self.api_url,
+            )
+            self.reservation_api = self.async_inference_queue.reservation_api
+        else:
+            raise Exception("Must use Python 3.10 or greater for this feature")
         model_names = []
         max_tokens = []
         for _, val in vars(self).items():
             if isinstance(val, BaseGenerationNode):
+                val.async_inference_queue = self.async_inference_queue
                 try:
                     model_names.append(val.model_name)
                     max_tokens.append(val.max_tokens)
                 except:
                     continue
         assert len(model_names) > 0
+        assert isinstance(prompt, Iterator) or isinstance(prompt, AsyncIterator)
+        iterator = self.forward(prompt)
+        assert isinstance(iterator, AsyncIterator)
 
-        capacity = lamini.max_workers * lamini.batch_size
         if not any(max_tokens):
             max_tokens = None
         else:
             max_tokens = max(max_tokens)
         self.reservation_api.initialize_reservation(
-            capacity,
+            capacity=lamini.batch_size * lamini.max_workers,
             model_name=model_names[0],
             batch_size=lamini.batch_size,
             max_tokens=max_tokens,

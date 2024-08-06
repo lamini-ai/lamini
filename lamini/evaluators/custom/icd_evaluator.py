@@ -55,8 +55,8 @@ class ICDEvaluator:
 class ICDPipeline(GenerationPipeline):
     def __init__(
         self,
-        answer_model="mistralai/Mistral-7B-Instruct-v0.2",
-        score_model="mistralai/Mistral-7B-Instruct-v0.2",
+        answer_model="mistralai/Mistral-7B-Instruct-v0.3",
+        score_model="mistralai/Mistral-7B-Instruct-v0.3",
     ):
         super(ICDPipeline, self).__init__()
 
@@ -70,7 +70,7 @@ class ICDPipeline(GenerationPipeline):
 
 
 class ICDAnswerGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(ICDAnswerGenerator, self).__init__(model_name, max_new_tokens=150)
 
     def generate(
@@ -118,7 +118,7 @@ class ICDAnswerGenerator(GenerationNode):
 
 
 class ICDScoreGenerator(GenerationNode):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         super(ICDScoreGenerator, self).__init__(
             model_name=model_name, max_new_tokens=150
         )

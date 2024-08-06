@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "2.5.7"
+version = "3.0.0"
 authors = [
   { name="PowerML", email="info@powerml.co" },
 ]
@@ -24,10 +24,13 @@ dependencies = [
     "jsonlines",
     "pandas",
     "azure-storage-blob",
-    "scikit-learn",
+    "scikit-learn",    
     "aiohttp",
-    "faiss-cpu",
 ]
+
+[project.optional-dependencies]
+index = ["faiss-cpu"]
+classifier = ["scikit-learn"]
 
 [tool.setuptools]
 packages = [
