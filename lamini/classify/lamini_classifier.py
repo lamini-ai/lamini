@@ -62,30 +62,30 @@ class LaminiClassifier:
 
         First, augment the examples for each class using the prompts.
         """
-        for class_name, prompt in prompts.items():
-            try:
-                logger.info(
-                    f"Generating examples for class '{class_name}' from prompt {prompt}"
-                )
-                self.add_class(class_name)
+        try:
+            for class_name, prompt in prompts.items():
+                    logger.info(
+                        f"Generating examples for class '{class_name}' from prompt {prompt}"
+                    )
+                    self.add_class(class_name)
 
-                result = self.generate_examples_from_prompt(
-                    class_name, prompt, self.examples.get(class_name, [])
-                )
+                    result = self.generate_examples_from_prompt(
+                        class_name, prompt, self.examples.get(class_name, [])
+                    )
 
-                self.examples[class_name] = result
+                    self.examples[class_name] = result
 
-                # Save partial progress
-                self.save_examples()
+                    # Save partial progress
+                    self.save_examples()
 
-            except Exception as e:
-                logger.error(f"Failed to generate examples for class {class_name}")
-                logger.error(e)
-                logger.error(
-                    "Consider rerunning the generation task if the error is transient, e.g. 500"
-                )
 
-        self.train()
+            self.train()
+        except Exception as e:
+            logger.error(f"Failed to generate examples for class {class_name}")
+            logger.error(e)
+            logger.error(
+                "Consider rerunning the generation task if the error is transient, e.g. 500"
+            )
 
     def train(self):
         # Form the embeddings

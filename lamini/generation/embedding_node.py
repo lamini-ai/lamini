@@ -2,7 +2,6 @@ import logging
 import sys
 from typing import AsyncIterator, Iterator, Optional, Union
 
-from lamini.api.lamini_config import get_config
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.generation.generation_node import GenerationNode
 
@@ -28,50 +27,14 @@ class EmbeddingNode(GenerationNode):
     ----------
     model_name: Optional[str]
         Model name as referred to on HuggingFace https://huggingface.co/models
-
-    api_key: Optional[str]
-        Lamini platform API key, if not provided the key stored
-        within ~.lamini/configure.yaml will be used. If either
-        don't exist then an error is raised.
-
-    api_url: Optional[str]
-        Lamini platform api url, only needed if a different url is needed outside of the
-        defined ones here: https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py#L68
-            i.e. localhost, staging.lamini.ai, or api.lamini.ai
-            Additionally, LLAMA_ENVIRONMENT can be set as an environment variable
-            that will be grabbed for the url before any of the above defaults
-
-    config: dict
-        Dictionary that is handled from the following script:
-            https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py
-        Configurations currently hold the following keys and data as a yaml format:
-            local:
-                url: <url>
-            staging:
-                url: <url>
-            production:
-                url: <url>
-
-            local:
-                key: <auth-key>
-            staging:
-                key: <auth-key>
-            production:
-                key:
-                    <auth-key
-
-
     """
 
     def __init__(
         self,
         model_name: Optional[str] = None,
-        api_key: Optional[str] = None,
-        api_url: Optional[str] = None,
-        config: dict = {},
     ):
         super(EmbeddingNode, self).__init__(
-            model_name=model_name, api_key=api_key, api_url=api_url, config=config
+            model_name=model_name
         )
 
     def generate(

@@ -19,6 +19,7 @@ async def process_generation_batch(args: dict):
         if reservation_api.current_reservation is None:
             return True
         if reservation_api.capacity_remaining < len(batch["prompt"]):
+            reservation_api.poll_for_reservation.set()
             return False
         # Now we can consume credits and send batch
         reservation_api.update_capacity_use(len(batch["prompt"]))

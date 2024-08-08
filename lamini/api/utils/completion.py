@@ -74,7 +74,7 @@ class Completion:
         # TODO: prompt should be named prompt to signal it's a batch.
         if isinstance(prompt, list) and len(prompt) > 20:
             print(
-                "For large inference batches, consider using a Generation Pipeline instead: https://github.com/lamini-ai/lamini-examples/blob/main/05_data_pipeline/README.md"
+                "For large inference batches, we strongly recommend using a Generation Pipeline to streamline your process: https://github.com/lamini-ai/lamini-examples/blob/main/05_data_pipeline/"
             )
         req_data["prompt"] = prompt
         req_data["output_type"] = output_type
