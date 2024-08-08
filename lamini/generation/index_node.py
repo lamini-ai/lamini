@@ -14,13 +14,10 @@ class IndexNode(EmbeddingNode):
         index: LaminiIndex,
         index_top_k: int = 1,
         model_name: Optional[str] = None,
-        api_key: Optional[str] = None,
-        api_url: Optional[str] = None,
-        config: dict = {},
         max_tokens: Optional[int] = None,
     ):
         super(IndexNode, self).__init__(
-            model_name=model_name, api_key=api_key, api_url=api_url, config=config
+            model_name=model_name
         )
         self.max_tokens = max_tokens
         self.index = index

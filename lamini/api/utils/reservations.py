@@ -110,28 +110,9 @@ class Reservations:
         async with self.condition:
             self.condition.notify(len(self.condition._waiters))
         self.is_polling = False
-        if self.is_working:
-            self.polling_task = asyncio.create_task(
-                self.kickoff_reservation_polling(client)
-            )
-            logger.info("Made reservation " + str(reservation))
-            if "dynamic_max_batch_size" not in reservation:
-                reservation["dynamic_max_batch_size"] = lamini.batch_size
-            self.current_reservation = reservation
-            self.capacity_remaining = reservation["capacity_remaining"]
-            self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
-            if self.variable_capacity:
-                self.capacity_needed = self.dynamic_max_batch_size * lamini.max_workers
-            async with self.condition:
-                self.condition.notify(len(self.condition._waiters))
-            self.is_polling = False
-            if self.is_working:
-                self.polling_task = asyncio.create_task(
-                    self.kickoff_reservation_polling(client)
-                )
-                _ = asyncio.create_task(
-                    self.timer_based_polling(reservation["end_time"])
-                )
+        self.polling_task = asyncio.create_task(
+            self.kickoff_reservation_polling(client)
+        )
 
     async def timer_based_polling(self, wakeup_time):
         try:
