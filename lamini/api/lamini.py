@@ -10,7 +10,7 @@ from lamini.api.lamini_config import get_config
 from lamini.api.rest_requests import get_version
 from lamini.api.train import Train
 from lamini.api.utils.completion import Completion
-from lamini.api.utils.upload_client import get_dataset_name, upload_to_blob
+from lamini.api.utils.upload_client import upload_to_blob
 
 logger = logging.getLogger(__name__)
 
@@ -98,37 +98,36 @@ class Lamini:
         output = self.trainer.get_upload_base_path()
         self.upload_base_path = output["upload_base_path"]
 
-        dataset_id = get_dataset_name()
-
         try:
             if self.upload_base_path == "azure":
                 data_str = get_data_str(data)
-                output = self.trainer.create_blob_dataset_location(
-                    self.upload_base_path, dataset_id, is_public
+                response = self.trainer.create_blob_dataset_location(
+                    self.upload_base_path, is_public
                 )
-                self.upload_file_path = output["dataset_location"]
+                self.upload_file_path = response["dataset_location"]
                 upload_to_blob(data_str, self.upload_file_path)
                 self.trainer.update_blob_dataset_num_datapoints(
-                    dataset_id, num_datapoints
+                    response["dataset_id"], num_datapoints
                 )
                 print("Data pairs uploaded to blob.")
             else:
-                output = self.trainer.upload_dataset_locally(
-                    self.upload_base_path, dataset_id, is_public, data
+                response = self.trainer.upload_dataset_locally(
+                    self.upload_base_path, is_public, data
                 )
-                self.upload_file_path = output["dataset_location"]
+                self.upload_file_path = response["dataset_location"]
                 print("Data pairs uploaded to local.")
 
+            print(response)
             print(
-                f"\nYour dataset id is: {dataset_id} . Consider using this in the future to train using the same data. \nEg: "
-                f"llm.train(dataset_id='{dataset_id}')"
+                f"\nYour dataset id is: {response['dataset_id']} . Consider using this in the future to train using the same data. \nEg: "
+                f"llm.train(data_or_dataset_id='{response['dataset_id']}')"
             )
 
         except Exception as e:
             print(f"Error uploading data pairs: {e}")
             raise e
 
-        return dataset_id
+        return response["dataset_id"]
 
     def upload_file(
         self, file_path: str, input_key: str = "input", output_key: str = "output"
@@ -186,10 +185,8 @@ class Lamini:
         ],
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
-        peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
-        use_cached_model: Optional[bool] = None,
-        multi_node: Optional[bool] = None,
+        **kwargs,
     ):
         if isinstance(data_or_dataset_id, str):
             dataset_id = data_or_dataset_id
@@ -199,7 +196,7 @@ class Lamini:
         base_path = self.trainer.get_upload_base_path()
         self.upload_base_path = base_path["upload_base_path"]
         existing_dataset = self.trainer.get_existing_dataset(
-            dataset_id, self.upload_base_path, is_public
+            dataset_id, self.upload_base_path
         )
         self.upload_file_path = existing_dataset["dataset_location"]
 
@@ -209,10 +206,7 @@ class Lamini:
             upload_file_path=self.upload_file_path,
             finetune_args=finetune_args,
             gpu_config=gpu_config,
-            peft_args=peft_args,
             is_public=is_public,
-            use_cached_model=use_cached_model,
-            multi_node=multi_node,
         )
         job["dataset_id"] = dataset_id
         return job
@@ -228,20 +222,14 @@ class Lamini:
         ],
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
-        peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
-        use_cached_model: Optional[bool] = None,
-        multi_node: Optional[bool] = None,
         **kwargs,
     ):
         job = self.train(
             data_or_dataset_id,
             finetune_args=finetune_args,
             gpu_config=gpu_config,
-            peft_args=peft_args,
             is_public=is_public,
-            use_cached_model=use_cached_model,
-            multi_node=multi_node,
         )
 
         try:
