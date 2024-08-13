@@ -37,8 +37,8 @@ async def process_generation_batch(args: dict):
         if reservation_api.current_reservation is not None:
             reservation_id = reservation_api.current_reservation["reservation_id"]
         json = get_body_from_args(batch, reservation_id)
-        logger.debug(f"Sending batch with {len(batch['prompt'])}")
-        result = await query_api(client, key, url, json, batch)
+        logger.info(f"Sending batch with {len(batch['prompt'])}")
+        result = await query_api(client, key, url, json, batch["type"])
     except Exception as e:
         logger.debug(
             f"Error in process_generation_batch, type: {type(e)}, message: {e}"
@@ -60,8 +60,8 @@ async def process_generation_batch(args: dict):
         prompt_obj.response = result[i]
 
 
-async def query_api(client, key, url, json, batch):
-    if batch["type"] == "embedding":
+async def query_api(client, key, url, json, type):
+    if type == "embedding":
         # TODO: Replace make_async_web_request() with Completion.generate()
         result = await make_async_web_request(client, key, url, "post", json)
         result = result["embedding"]

@@ -1,14 +1,27 @@
-import hashlib
 import itertools
 import os
-import time
-from typing import Dict, Iterable, List, Union
+from typing import Iterable, Generator, Any
 
 import jsonlines
 from azure.storage.blob import BlobClient
 
 
-def upload_to_blob(data: Iterable[str], sas_url: str):
+def upload_to_blob(data: Iterable[str], sas_url: str) -> None:
+    """Upload the provided data to the sas_url
+
+    Parameters
+    ----------
+    data: Iterable[str]
+        Data to upload
+    
+    sas_url: str
+        Location to upload to
+    
+    Returns
+    -------
+    None
+    """
+
     blob_client_sas = BlobClient.from_blob_url(blob_url=sas_url)
 
     if blob_client_sas.exists():
@@ -20,7 +33,22 @@ def upload_to_blob(data: Iterable[str], sas_url: str):
         print(f"Upload to blob completed for data.")
 
 
-def upload_to_local(data, dataset_location):
+def upload_to_local(data: Iterable[str], dataset_location: str) -> None:
+    """Upload provided data to local storage
+
+    Parameters
+    ----------
+    data: Iterable[str]
+        Data to upload
+    
+    dataset_location: str
+        Local location to store data
+
+    Returns
+    -------
+    None
+    """
+
     if os.path.exists(dataset_location):
         print(f"File/data already exists")
     else:
@@ -31,16 +59,10 @@ def upload_to_local(data, dataset_location):
         print(f"Upload completed for data.")
 
 
-def get_dataset_name():
-    m = hashlib.sha256()
-    m.update(str(time.time()).encode("utf-8"))
-    return m.hexdigest()
-
-
 class SerializableGenerator(list):
     """Generator that is serializable by JSON to send uploaded data over http requests"""
 
-    def __init__(self, iterable):
+    def __init__(self, iterable) -> None:
         tmp_body = iter(iterable)
         try:
             self._head = iter([next(tmp_body)])
@@ -48,5 +70,5 @@ class SerializableGenerator(list):
         except StopIteration:
             self._head = []
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[Any, None, None]:
         return itertools.chain(self._head, *self[:1])

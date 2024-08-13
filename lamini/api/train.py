@@ -28,10 +28,7 @@ class Train:
         upload_file_path: Optional[str] = None,
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
-        peft_args: Optional[dict] = None,
         is_public: Optional[bool] = None,
-        use_cached_model: Optional[bool] = None,
-        multi_node: Optional[bool] = None,
     ):
         req_data = {"model_name": model_name}
         req_data["dataset_id"] = dataset_id
@@ -41,14 +38,8 @@ class Train:
             req_data["finetune_args"] = finetune_args
         if gpu_config is not None:
             req_data["gpu_config"] = gpu_config
-        if peft_args is not None:
-            req_data["peft_args"] = peft_args
         if is_public is not None:
             req_data["is_public"] = is_public
-        if use_cached_model is not None:
-            req_data["use_cached_model"] = use_cached_model
-        if multi_node is not None:
-            req_data["multi_node"] = multi_node
         url = self.api_prefix + "train"
 
         job = make_web_request(self.api_key, url, "post", req_data)
@@ -102,20 +93,14 @@ class Train:
 
         return make_web_request(self.api_key, url, "get")
 
-    def create_blob_dataset_location(
-        self, upload_base_path, dataset_id, is_public, data=None
-    ):
+    def create_blob_dataset_location(self, upload_base_path, is_public):
         url = self.api_prefix + "data"
         req_data = {
             "upload_base_path": upload_base_path,
-            "dataset_id": dataset_id,
         }
 
         if is_public is not None:
             req_data["is_public"] = is_public
-
-        if data is not None:
-            req_data["data"] = data
 
         return make_web_request(
             self.api_key,
@@ -142,11 +127,10 @@ class Train:
         url = self.api_prefix + "get-upload-base-path"
         return make_web_request(self.api_key, url, "get")
 
-    def upload_dataset_locally(self, upload_base_path, dataset_id, is_public, data):
+    def upload_dataset_locally(self, upload_base_path, is_public, data):
         url = self.api_prefix + "local-data"
         req_data = {}
         req_data["upload_base_path"] = upload_base_path
-        req_data["dataset_id"] = dataset_id
         req_data["data"] = SerializableGenerator(data)
         if is_public is not None:
             req_data["is_public"] = is_public
@@ -157,12 +141,10 @@ class Train:
             req_data,
         )
 
-    def get_existing_dataset(self, dataset_id, upload_base_path, is_public):
+    def get_existing_dataset(self, dataset_id, upload_base_path):
         url = self.api_prefix + "existing-data"
         req_data = {"dataset_id": dataset_id}
         req_data["upload_base_path"] = upload_base_path
-        if is_public is not None:
-            req_data["is_public"] = is_public
         return make_web_request(
             self.api_key,
             url,
