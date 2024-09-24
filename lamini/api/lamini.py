@@ -1,21 +1,48 @@
 import json
+import jsonlines
 import logging
 import os
-import time
-from typing import Dict, Iterable, List, Optional, Union
-
-import jsonlines
 import pandas as pd
+import time
+
 from lamini.api.lamini_config import get_config
 from lamini.api.rest_requests import get_version
 from lamini.api.train import Train
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import upload_to_blob
+from lamini.error.error import (
+    DownloadingModelError,
+)
+from typing import Dict, Iterable, List, Optional, Union, Any, Generator
 
 logger = logging.getLogger(__name__)
 
 
 class Lamini:
+    """Main interface for Lamini platform functionality. Key features are:
+        1. Generation calls
+        2. Data Upload/Downloading
+        3. Training orchestration
+        4. Evaluation
+
+    Parameters
+    ----------
+    model_name: str = None
+        LLM hugging face ID
+
+    api_key: Optional[str]
+        Lamini platform API key, if not provided the key stored
+        within ~.lamini/configure.yaml will be used. If either
+        don't exist then an error is raised.
+
+    api_url: Optional[str]
+        Lamini platform api url, only needed if a different url is needed outside of the
+        defined ones here: https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py#L68
+            i.e. localhost, staging.lamini.ai, or api.lamini.ai
+            Additionally, LLAMA_ENVIRONMENT can be set as an environment variable
+            that will be grabbed for the url before any of the above defaults
+    """
+
     def __init__(
         self,
         model_name: str,
@@ -31,7 +58,19 @@ class Lamini:
         self.upload_file_path = None
         self.upload_base_path = None
 
-    def version(self):
+    def version(self) -> str:
+        """Get the version of the Lamini platform
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            Returned version fo the platform
+        """
+
         return get_version(self.api_key, self.api_url, self.config)
 
     def generate(
@@ -41,14 +80,54 @@ class Lamini:
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
-    ):
-        result = self.completion.generate(
-            prompt=prompt,
-            model_name=model_name or self.model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
-            max_new_tokens=max_new_tokens,
-        )
+    ) -> Union[str, Dict[str, Any]]:
+        """Generation request to the LLM with the provided prompt.
+        Model name will specify which LLM from hugging face to use.
+        Output type is used to handle structured output of the response.
+        max_tokens and max_new_tokens are related to the total amount of tokens
+        the model can use and generate. max_new_tokens is recommended to be used
+        over max_tokens to adjust model output.
+
+        Parameters
+        ----------
+        prompt: Union[str, List[str]]
+            Prompt to send to LLM
+
+        model_name: Optional[str] = None
+            Which model to use from hugging face
+
+        output_type: Optional[dict] = None
+            Structured output format
+
+        max_tokens: Optional[int] = None
+            Max number of tokens for the model's generation
+
+        max_new_tokens: Optional[int] = None
+            Max number of new tokens from the model's generation
+
+        Raises
+        ------
+        DownloadingModelError
+            Raised when an issue occurs with the model_name provided has failed to download
+
+        Returns
+        -------
+        result: Union[str, Dict[str, Any]]
+            Generated response from the LLM, strings are returned when output_type is not
+            specified, otherwise a dictionary matching the output_type is returned.
+        """
+
+        result = None
+        try:
+            result = self.completion.generate(
+                prompt=prompt,
+                model_name=model_name or self.model_name,
+                output_type=output_type,
+                max_tokens=max_tokens,
+                max_new_tokens=max_new_tokens,
+            )
+        except DownloadingModelError as e:
+            return e
         if output_type is None:
             if isinstance(prompt, list):
                 result = [single_result["output"] for single_result in result]
@@ -64,6 +143,42 @@ class Lamini:
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
     ):
+        """Asynchronous call for a generation request to the LLM with the provided prompt.
+        Model name will specify which LLM from hugging face to use.
+        Output type is used to handle structured output of the response.
+        max_tokens and max_new_tokens are related to the total amount of tokens
+        the model can use and generate. max_new_tokens is recommended to be used
+        over max_tokens to adjust model output.
+
+        Parameters
+        ----------
+        prompt: Union[str, List[str]]
+            Prompt to send to LLM
+
+        model_name: Optional[str] = None
+            Which model to use from hugging face
+
+        output_type: Optional[dict] = None
+            Structured output format
+
+        max_tokens: Optional[int] = None
+            Max number of tokens for the model's generation
+
+        max_new_tokens: Optional[int] = None
+            Max number of new tokens from the model's generation
+
+        Raises
+        ------
+        DownloadingModelError
+            Raised when an issue occurs with the model_name provided has failed to download
+
+        Returns
+        -------
+        result: Union[str, Dict[str, Any]]
+            Generated response from the LLM, strings are returned when output_type is not
+            specified, otherwise a dictionary matching the output_type is returned.
+        """
+
         req_data = self.completion.make_llm_req_map(
             prompt=prompt,
             model_name=model_name or self.model_name,
@@ -83,7 +198,32 @@ class Lamini:
         self,
         data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]],
         is_public: Optional[bool] = None,
-    ):
+    ) -> str:
+        """Upload the provide data to the Lamini Platform
+
+        Parameters
+        ----------
+        data: Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+            Data to upload
+
+        is_public: Optional[bool] = None
+            Flag to indicate if the platform should allow the dataset to be
+            publically shared.
+
+        Raises
+        ------
+        ValueError
+            Raised in data is None
+
+        Exception
+            Raised if there was a failure during upload
+
+        Returns
+        -------
+        str
+            Dataset designation within the platform
+        """
+
         num_datapoints = 0
 
         def get_data_str(d):
@@ -117,7 +257,6 @@ class Lamini:
                 self.upload_file_path = response["dataset_location"]
                 print("Data pairs uploaded to local.")
 
-            print(response)
             print(
                 f"\nYour dataset id is: {response['dataset_id']} . Consider using this in the future to train using the same data. \nEg: "
                 f"llm.train(data_or_dataset_id='{response['dataset_id']}')"
@@ -131,7 +270,30 @@ class Lamini:
 
     def upload_file(
         self, file_path: str, input_key: str = "input", output_key: str = "output"
-    ):
+    ) -> None:
+        """Upload a provided file to the Lamini Platform
+
+        Parameters
+        ----------
+        file_path: str
+            File path location to upload
+
+        input_key: str = "input"
+            Key of the json dictionary to use as the input
+
+        output_key: str = "output"
+            Key of the json dictionary to use as the output
+
+        Raises
+        ------
+        Exception
+            Raised if there is an issue with upload
+
+        Returns
+        -------
+        None
+        """
+
         items = self._upload_file_impl(file_path, input_key, output_key)
         try:
             dataset_id = self.upload_data(items)
@@ -142,7 +304,37 @@ class Lamini:
 
     def _upload_file_impl(
         self, file_path: str, input_key: str = "input", output_key: str = "output"
-    ):
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Private function to handle file types and loading for upload_file
+
+        Parameters
+        ----------
+        file_path: str
+            File path location to upload
+
+        input_key: str = "input"
+            Key of the json dictionary to use as the input
+
+        output_key: str = "output"
+            Key of the json dictionary to use as the output
+
+        Raises
+        ------
+        ValueError
+            Raised if input_key is not within the file contents provided
+
+        KeyError
+            Raises if input_key or output_key is not within the file contents provided
+
+        Exception
+            If a file type outside of csv or jsonlines is provided
+
+        Yields
+        -------
+        items: Dict[str, Any]
+            Contents of the file provided
+        """
+
         if os.path.getsize(file_path) > 1e10:
             raise Exception("File size is too large, please upload file less than 10GB")
 
@@ -186,8 +378,38 @@ class Lamini:
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
-        **kwargs,
-    ):
+    ) -> str:
+        """Handler for training jobs through the Trainer object. This submits a training
+        job request to the platform using the provided data.
+
+        Parameters
+        ----------
+        data_or_dataset_id: Union[
+            str, Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ]
+            Data or Id to use for the training job
+
+        finetune_args: Optional[dict] = None
+            Arguments that are passed into the Trainer.train function
+
+        gpu_config: Optional[dict] = None
+            Configuration for the GPUs on the platform
+
+        is_public: Optional[bool] = None
+            Allow public access to the model and dataset
+
+        Raises
+        ------
+        AssertionError
+            Raises if dataset_id is None, a dataset_id is generated when data is provided
+            to this function instead of an id
+
+        Returns
+        -------
+        job: str
+            Job id for the train job on the platform
+        """
+
         if isinstance(data_or_dataset_id, str):
             dataset_id = data_or_dataset_id
         else:
@@ -224,7 +446,43 @@ class Lamini:
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         **kwargs,
-    ):
+    ) -> str:
+        """Handler for training jobs through the Trainer object. This submits a training
+        job request to the platform using the provided data. This differs from the train
+        function in that this function will continuously poll until the job is completed.
+
+        Parameters
+        ----------
+        data_or_dataset_id: Union[
+            str, Iterable[Dict[str, Union[int, float, str, bool, Dict, List]]]
+        ]
+            Data or Id to use for the training job
+
+        finetune_args: Optional[dict] = None
+            Arguments that are passed into the Trainer.train function
+
+        gpu_config: Optional[dict] = None
+            Configuration for the GPUs on the platform
+
+        is_public: Optional[bool] = None
+            Allow public access to the model and dataset
+
+        kwargs: Dict[str, Any]
+            Key word arguments
+                verbose
+                    output text indicating the job is still runing
+
+        Raises
+        ------
+        KeyboardInterrupt
+            Raised when keyboard interrupt is called
+
+        Returns
+        -------
+        status: str
+            Job status on the platform
+        """
+
         job = self.train(
             data_or_dataset_id,
             finetune_args=finetune_args,
@@ -266,22 +524,98 @@ class Lamini:
     # Add alias for tune
     tune_and_wait = train_and_wait
 
-    def cancel_job(self, job_id=None):
+    def cancel_job(self, job_id: str = None) -> str:
+        """Cancel to job specified by the id
+
+        Parameters
+        ----------
+        job_id: str=None
+            job id to cancel
+
+        Returns
+        -------
+        str
+            Output from platform of the confirming cancelling of the job
+        """
+
         return self.trainer.cancel_job(job_id)
 
     def cancel_all_jobs(
         self,
-    ):
+    ) -> str:
+        """Cancel all jobs from this user on the platform
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            Output from platform of the confirming cancelling of the job
+        """
+
         return self.trainer.cancel_all_jobs()
 
-    def resume_job(self, job_id=None):
+    def resume_job(self, job_id: str = None) -> str:
+        """Resume the specific job on the Lamini platform
+
+        Parameters
+        ----------
+        job_id: str=None
+            Job to be resumed
+
+        Returns
+        -------
+        str:
+            Returned status of the platform for the job
+        """
+
         return self.trainer.resume_job(job_id)
 
-    def check_job_status(self, job_id=None):
+    def check_job_status(self, job_id: str = None) -> str:
+        """Check the specified job on the Lamini platform
+
+        Parameters
+        ----------
+        job_id: str=None
+            Job to check status
+
+        Returns
+        -------
+        str
+            Returned status of the platform job
+        """
+
         return self.trainer.check_job_status(job_id)
 
-    def get_jobs(self):
+    def get_jobs(self) -> List[str]:
+        """Get all jobs for this user on the Lamini Platform
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        List[str]:
+            Returned list of all jobs
+        """
+
         return self.trainer.get_jobs()
 
-    def evaluate(self, job_id=None):
+    def evaluate(self, job_id: str = None) -> str:
+        """Run an evaluation job on the specified training job
+
+        Parameters
+        ----------
+        job_id: str=None
+            Job to evaluate
+
+        Returns
+        -------
+        str:
+            Status of the job on the platform
+        """
+
         return self.trainer.evaluate(job_id)

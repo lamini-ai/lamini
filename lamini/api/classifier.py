@@ -1,5 +1,5 @@
 import time
-from typing import List, Union
+from typing import List, Union, Optional
 
 import lamini
 import requests
@@ -8,7 +8,31 @@ from lamini.api.rest_requests import make_web_request
 
 
 class Classifier:
-    def __init__(self, model_id: int = None, api_key: str = None, api_url: str = None):
+    """Handler for classification functions of an already trained LLM for classification tasks
+    on the Lamini Platform
+
+    Parameters
+    ----------
+    model_id: int = None
+        Tuned Model designation on the Lamini platform
+
+    api_key: Optional[str]
+        Lamini platform API key, if not provided the key stored
+        within ~.lamini/configure.yaml will be used. If either
+        don't exist then an error is raised.
+
+    api_url: Optional[str]
+        Lamini platform api url, only needed if a different url is needed outside of the default.
+            default = "https://app.lamini.ai"
+
+    """
+
+    def __init__(
+        self,
+        model_id: int = None,
+        api_key: Optional[str] = None,
+        api_url: Optional[str] = None,
+    ):
         self.model_id = model_id
         self.config = get_config()
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
@@ -21,7 +45,36 @@ class Classifier:
         top_n: int = None,
         threshold: float = None,
         metadata: bool = None,
-    ):
+    ) -> str:
+        """Send a classification request for self.model_id with the provided prompt.
+
+        Parameters
+        ----------
+        prompt: Union[str, List[str]]
+            Text prompt for the LLM classifier
+
+        top_n: int = None
+            Top N responses from the LLM Classifier, n indicates the limit
+
+        threshold: float = None
+            Classifier threshold to indicate a prediction is 'confident' enough
+            for a predicted class
+
+        metadata: bool = None
+            Boolean flag to request for metadata return from the request
+
+        Raises
+        ------
+        Exception
+            Raised if self.model_id was not set on instantiation. If no model_id
+            was provided then no model can be requested for a prediction.
+
+        Returns
+        -------
+        resp["classification"]: str
+            Returned predicted class as a string
+        """
+
         if self.model_id is None:
             raise Exception(
                 "model_id must be set in order to classify. Upload a model or set an existing model_id"
@@ -41,7 +94,26 @@ class Classifier:
         )
         return resp["classification"]
 
-    def predict(self, prompt: Union[str, List[str]]):
+    def predict(self, prompt: Union[str, List[str]]) -> str:
+        """Send a prediction request for self.model_id with the provided prompt.
+
+        Parameters
+        ----------
+        prompt: Union[str, List[str]]
+            Text prompt for the LLM classifier
+
+        Raises
+        ------
+        Exception
+            Raised if self.model_id was not set on instantiation. If no model_id
+            was provided then no model can be requested for a prediction.
+
+        Returns
+        -------
+        resp["prediction"]: str
+            Returned predicted class as a string
+        """
+
         if self.model_id is None:
             raise Exception(
                 "model_id must be set in order to classify. Upload a model or set an existing model_id"
@@ -55,7 +127,20 @@ class Classifier:
         )
         return resp["prediction"]
 
-    def upload(self, file_path: str):
+    def upload(self, file_path: str) -> None:
+        """Upload file to Lamini platform
+
+
+        Parameters
+        ----------
+        file_path: str
+            Path to file to upload
+
+        Returns
+        -------
+        None
+        """
+
         files = {"file": open(file_path, "rb")}
         headers = {
             "Authorization": "Bearer " + self.api_key,

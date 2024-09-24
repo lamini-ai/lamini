@@ -36,3 +36,11 @@ class UnavailableResourceError(LlamaError):
 
 class ServerTimeoutError(LlamaError):
     """Model is still downloading"""
+
+
+class DownloadingModelError(LlamaError):
+    """Downloading model"""
+
+
+class RequestTimeoutError(LlamaError):
+    """Request Timeout. Please try again."""

@@ -3,7 +3,7 @@ import logging
 
 
 async def shutdown(signal, loop) -> None:
-    """ Cleanup tasks tied to the service's shutdown.
+    """Cleanup tasks tied to the service's shutdown.
 
     Parameters
     ----------
