@@ -8,7 +8,7 @@ async def async_iter(normal_iter: Iterator) -> AsyncGenerator[Any, None]:
     ----------
     normal_iter: Iterator
         Iterator to wrap with a yield generator
-    
+
     Yields
     -------
     item: Any

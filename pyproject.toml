@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "3.0.5"
+version = "3.1.0"
 authors = [
-  { name="PowerML", email="info@powerml.co" },
+  { name="Lamini", email="info@lamini.ai" },
 ]
 description = "Build on large language models faster"
 readme = "README.md"

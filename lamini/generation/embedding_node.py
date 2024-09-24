@@ -33,9 +33,7 @@ class EmbeddingNode(GenerationNode):
         self,
         model_name: Optional[str] = None,
     ):
-        super(EmbeddingNode, self).__init__(
-            model_name=model_name
-        )
+        super(EmbeddingNode, self).__init__(model_name=model_name)
 
     def generate(
         self,

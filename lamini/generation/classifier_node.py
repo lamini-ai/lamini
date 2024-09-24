@@ -16,9 +16,7 @@ class ClassifierNode(EmbeddingNode):
         model_name: Optional[str] = None,
         max_tokens: Optional[int] = None,
     ):
-        super(ClassifierNode, self).__init__(
-            model_name=model_name
-        )
+        super(ClassifierNode, self).__init__(model_name=model_name)
         self.max_tokens = max_tokens
         self.classifier = classifier
 

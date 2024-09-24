@@ -13,10 +13,10 @@ def upload_to_blob(data: Iterable[str], sas_url: str) -> None:
     ----------
     data: Iterable[str]
         Data to upload
-    
+
     sas_url: str
         Location to upload to
-    
+
     Returns
     -------
     None
@@ -40,7 +40,7 @@ def upload_to_local(data: Iterable[str], dataset_location: str) -> None:
     ----------
     data: Iterable[str]
         Data to upload
-    
+
     dataset_location: str
         Local location to store data
 

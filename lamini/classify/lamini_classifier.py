@@ -6,6 +6,8 @@ import random
 from itertools import chain
 from typing import List
 
+import warnings
+
 import jsonlines
 from lamini import Lamini
 from lamini.api.embedding import Embedding
@@ -32,6 +34,11 @@ class LaminiClassifier:
         example_modifier=None,
         example_expander=None,
     ):
+        warnings.warn(
+            "LaminiClassifer will be removed in a future version and will be replaced with the API endpoint /v2/classifier",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.model_name = model_name
         self.augmented_example_count = augmented_example_count
         self.batch_size = batch_size
@@ -64,20 +71,19 @@ class LaminiClassifier:
         """
         try:
             for class_name, prompt in prompts.items():
-                    logger.info(
-                        f"Generating examples for class '{class_name}' from prompt {prompt}"
-                    )
-                    self.add_class(class_name)
+                logger.info(
+                    f"Generating examples for class '{class_name}' from prompt {prompt}"
+                )
+                self.add_class(class_name)
 
-                    result = self.generate_examples_from_prompt(
-                        class_name, prompt, self.examples.get(class_name, [])
-                    )
+                result = self.generate_examples_from_prompt(
+                    class_name, prompt, self.examples.get(class_name, [])
+                )
 
-                    self.examples[class_name] = result
+                self.examples[class_name] = result
 
-                    # Save partial progress
-                    self.save_examples()
-
+                # Save partial progress
+                self.save_examples()
 
             self.train()
         except Exception as e:
@@ -86,6 +92,8 @@ class LaminiClassifier:
             logger.error(
                 "Consider rerunning the generation task if the error is transient, e.g. 500"
             )
+            return False
+        return True
 
     def train(self):
         # Form the embeddings

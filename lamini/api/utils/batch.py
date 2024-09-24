@@ -1,15 +1,12 @@
 from typing import Any, Dict, List, Optional, Union
 
-import aiohttp
 import lamini
 from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
-from lamini.api.rest_requests import make_async_web_request, make_web_request
+from lamini.api.rest_requests import make_web_request
 
 
-class Completion:
-    """Handler for formatting and POST request for the completions
-    and streaming_completions API endpoints.
-
+class Batch:
+    """Handler for formatting and POST request for the batch submission API
 
     Parameters
     ----------
@@ -27,7 +24,11 @@ class Completion:
 
     """
 
-    def __init__(self, api_key, api_url) -> None:
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        api_url: Optional[str] = None,
+    ) -> None:
         """
         Configuration dictionary for platform metadata provided by the following function:
                 https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py
@@ -53,7 +54,7 @@ class Completion:
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
         self.api_prefix = self.api_url + "/v1/"
 
-    def generate(
+    def submit(
         self,
         prompt: Union[str, List[str]],
         model_name: str,
@@ -95,45 +96,20 @@ class Completion:
             max_new_tokens=max_new_tokens,
         )
         resp = make_web_request(
-            self.api_key, self.api_prefix + "completions", "post", req_data
+            self.api_key, self.api_prefix + "batch_completions", "post", req_data
         )
         return resp
 
-    async def async_generate(
-        self, params: Dict[str, Any], client: aiohttp.ClientSession = None
+    def check_result(
+        self,
+        id: str,
     ) -> Dict[str, Any]:
-        """
+        """Check for the result of a batch request with the appropriate batch id."""
 
-        Parameters
-        ----------
-        params: Dict[str, Any]
-            POST Request input parameters
-
-        client: aiohttp.ClientSession = None
-            ClientSession handler
-
-        Returns
-        -------
-        resp: Dict[str, Any]
-            Json data returned from POST request
-        """
-
-        if client is not None:
-            assert isinstance(client, aiohttp.ClientSession)
-            resp = await make_async_web_request(
-                client,
-                self.api_key,
-                self.api_prefix + "streaming_completions",
-                "post",
-                params,
-            )
-            return resp
-
-        async with aiohttp.ClientSession() as client:
-            resp = await make_async_web_request(
-                client, self.api_key, self.api_prefix + "completions", "post", params
-            )
-            return resp
+        resp = make_web_request(
+            self.api_key, self.api_prefix + f"batch_completions/{id}/result", "get"
+        )
+        return resp
 
     def make_llm_req_map(
         self,

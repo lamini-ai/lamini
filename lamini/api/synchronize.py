@@ -1,12 +1,27 @@
+from typing import Any
 import asyncio
 from threading import Thread, current_thread
 
 
-def sync(awaitable):
-    """
-    Get result of calling function on the given args. If it is awaitable, will
+def sync(awaitable) -> Any:
+    """Get result of calling function on the given args. If it is awaitable, will
     block until it is finished. Runs in a new thread in such cases.
     Credit Piotr: https://github.com/truera/trulens/pull/793/files#diff-23a219ce07a4edb8892fe8ecf21aba06d5ebe012c80c3386f9a9e1fe80d23254
+
+    Parameters
+    ----------
+    awaitable: Callable
+        Function to run if it is an async function
+
+    Raises
+    ------
+    Exception
+        Raised from asyncio loop failure
+
+    Returns
+    -------
+    Any
+        Result of the awaitable
     """
 
     # Check if there is a running loop.
@@ -24,7 +39,23 @@ def sync(awaitable):
     # Otherwise we cannot create a new one in this thread so we create a
     # new thread to run the awaitable until completion.
 
-    def run_in_new_loop():
+    def run_in_new_loop() -> None:
+        """Create a new asycn loop for the Callable function
+
+        Parameters
+        ----------
+        None
+
+        Raises
+        ------
+        Exception
+            Thrown if an issue occurs within the new event loop
+
+        Returns
+        -------
+        None
+        """
+
         th = current_thread()
         # Attach return value and possibly exception to thread object so we
         # can retrieve from the starter of the thread.

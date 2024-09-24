@@ -1,6 +1,8 @@
+import asyncio
 import logging
 
 from lamini.api.rest_requests import make_async_web_request
+from lamini.api.utils.batch import Batch
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +58,13 @@ async def process_generation_batch(args: dict):
                 f"capacity remaining after query: {reservation_api.capacity_remaining}"
             )
             reservation_api.poll_for_reservation.set()
-    for i, prompt_obj in enumerate(batch["prompt"]):
-        prompt_obj.response = result[i]
+    if batch["type"] == "embedding":
+        for i, prompt_obj in enumerate(batch["prompt"]):
+            prompt_obj.response = result[i]
+    else:
+        for i, prompt_obj in enumerate(batch["prompt"]):
+            prompt_obj.response = result["outputs"][i]
+            prompt_obj.finish_reason = result["finish_reason"][i]
 
 
 async def query_api(client, key, url, json, type):
@@ -66,7 +73,18 @@ async def query_api(client, key, url, json, type):
         result = await make_async_web_request(client, key, url, "post", json)
         result = result["embedding"]
     else:
-        result = await make_async_web_request(client, key, url, "post", json)
+        batch_api = Batch()
+        submit_response = batch_api.submit(
+            prompt=json["prompt"],
+            model_name=json["model_name"],
+            output_type=json["output_type"],
+            max_new_tokens=json["max_new_tokens"],
+        )  # TODO: Don't resubmit work if an error is thrown in the while loop
+        while True:
+            await asyncio.sleep(5)
+            result = batch_api.check_result(submit_response["id"])
+            if result:
+                break
     return result
 
 

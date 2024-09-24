@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class Reservations:
-    """ Hanlder for API reservations endpoint. 
+    """Handler for API reservations endpoint.
 
-    
+
     Parameters
-    ----------    
+    ----------
     api_key: Optinal[str] = None
         Lamini platform API key, if not provided the key stored
         within ~.lamini/configure.yaml will be used. If either
@@ -65,16 +65,16 @@ class Reservations:
         ----------
         capacity: int
             Reservation capactiy
-        
+
         model_name: str
             Model to use for the reserved request
-        
+
         batch_size: int
             Batch size for the inference call
-        
+
         max_tokens: Optional[int]
             Max tokens for the inference call
-        
+
         Returns
         -------
         None
@@ -82,9 +82,17 @@ class Reservations:
         Raises
         ------
         Exception
-            General exception for reservation issues. The exception is logged 
+            General exception for reservation issues. The exception is logged
             but execution is continued.
         """
+        if lamini.bypass_reservation:
+            self.current_reservation = None
+            self.capacity_remaining = 0
+            self.dynamic_max_batch_size = 0
+            self.capacity_needed = 0
+            self.model_name = model_name
+            self.max_tokens = None
+            return
 
         try:
             logger.info(
@@ -125,12 +133,12 @@ class Reservations:
             self.max_tokens = None
 
     def pause_for_reservation_start(self) -> None:
-        """ Barrier until specified start time for the reservation
+        """Barrier until specified start time for the reservation
 
         Parameters
         ----------
         None
-        
+
         Returns
         -------
         None
@@ -146,7 +154,9 @@ class Reservations:
         if sleep_time.total_seconds() > 0:
             time.sleep(sleep_time.total_seconds())
 
-    async def wait_and_poll_for_reservation(self, client: aiohttp.ClientSession) -> None:
+    async def wait_and_poll_for_reservation(
+        self, client: aiohttp.ClientSession
+    ) -> None:
         """Wait for current reservation to finish and then make a new reservation. If
         this reservation is working (indicated by the self.is_working flag), then
         set the kickoff and timer based polling jobs.
@@ -155,7 +165,7 @@ class Reservations:
         ----------
         client: aiohttp.ClientSession
             Http Client Handler
-        
+
         Returns
         -------
         None
@@ -185,28 +195,9 @@ class Reservations:
         async with self.condition:
             self.condition.notify(len(self.condition._waiters))
         self.is_polling = False
-        if self.is_working:
-            self.polling_task = asyncio.create_task(
-                self.kickoff_reservation_polling(client)
-            )
-            logger.info("Made reservation " + str(reservation))
-            if "dynamic_max_batch_size" not in reservation:
-                reservation["dynamic_max_batch_size"] = lamini.batch_size
-            self.current_reservation = reservation
-            self.capacity_remaining = reservation["capacity_remaining"]
-            self.dynamic_max_batch_size = reservation["dynamic_max_batch_size"]
-            if self.variable_capacity:
-                self.capacity_needed = self.dynamic_max_batch_size * lamini.max_workers
-            async with self.condition:
-                self.condition.notify(len(self.condition._waiters))
-            self.is_polling = False
-            if self.is_working:
-                self.polling_task = asyncio.create_task(
-                    self.kickoff_reservation_polling(client)
-                )
-                _ = asyncio.create_task(
-                    self.timer_based_polling(reservation["end_time"])
-                )
+        self.polling_task = asyncio.create_task(
+            self.kickoff_reservation_polling(client)
+        )
 
     async def timer_based_polling(self, wakeup_time: int) -> None:
         """Wait for the provided wakeup_time to run the polling for the
@@ -216,7 +207,7 @@ class Reservations:
         ----------
         wakeup_time: int
             ISO format datetime
-        
+
         Returns
         -------
         None
@@ -242,7 +233,7 @@ class Reservations:
         ----------
         client: aiohttp.ClientSession
             Http Session handler
-        
+
         Returns
         -------
         None
@@ -264,7 +255,7 @@ class Reservations:
         Parameters
         ----------
         None
-        
+
         Returns
         -------
         None
@@ -287,7 +278,7 @@ class Reservations:
         ----------
         queries: int
             Quantity of queries to decrease from self.capacity_remaining
-        
+
         Returns
         -------
         None
@@ -304,7 +295,7 @@ class Reservations:
         ----------
         queries: int
             Quantity of queries to decrease from self.capacity_needed
-        
+
         Returns
         -------
         None
