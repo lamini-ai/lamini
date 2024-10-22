@@ -1,12 +1,11 @@
 import logging
-from typing import Union, Iterator, AsyncIterator
+from typing import AsyncIterator, Iterator, Union
 
 import jsonlines
+from lamini.evaluators.utils.utils import save_results
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.generation.generation_node import GenerationNode
 from lamini.generation.generation_pipeline import GenerationPipeline
-from lamini.evaluators.utils.utils import save_results, format_results
-
 
 logger = logging.getLogger(__name__)
 

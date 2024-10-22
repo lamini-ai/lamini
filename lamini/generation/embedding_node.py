@@ -1,5 +1,4 @@
 import logging
-import sys
 from typing import AsyncIterator, Iterator, Optional, Union
 
 from lamini.generation.base_prompt_object import PromptObject

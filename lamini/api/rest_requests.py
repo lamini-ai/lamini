@@ -1,8 +1,7 @@
-from typing import Optional, Dict, Any
-
 import asyncio
 import importlib.metadata
 import logging
+from typing import Any, Dict, Optional
 
 import aiohttp
 import requests
@@ -24,39 +23,6 @@ logger = logging.getLogger(__name__)
 warn_once = False
 
 
-def get_version(
-    key: Optional[str], url: Optional[str], config: Optional[Dict[str, Any]]
-) -> str:
-    """Getter for the Lamini Platform version
-
-    Parameters
-    ----------
-    key: Optional[str]
-        Lamini platform API key, if not provided the key stored
-        within ~.lamini/configure.yaml will be used. If either
-        don't exist then an error is raised.
-
-    url: Optional[str]
-        Lamini platform api url, only needed if a different url is needed outside of the
-        defined ones here: https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py#L68
-            i.e. localhost, staging.lamini.ai, or api.lamini.ai
-            Additionally, LLAMA_ENVIRONMENT can be set as an environment variable
-            that will be grabbed for the url before any of the above defaults
-
-    config: Dict[str, Any]
-        Configuration storing the key and url
-
-    Returns
-    -------
-    str
-        Version of the Lamini Platform
-    """
-
-    api_key = key or get_configured_key(config)
-    api_url = url or get_configured_url(config)
-    return make_web_request(api_key, api_url + "/v1/version", "get", None)
-
-
 def check_version(resp: Dict[str, Any]) -> None:
     """If the flag of warn_once is not set then print the X-warning
     from the post request response and set the flag to true.
@@ -76,6 +42,34 @@ def check_version(resp: Dict[str, Any]) -> None:
         if resp.headers is not None and "X-Warning" in resp.headers:
             warn_once = True
             print(resp.headers["X-Warning"])
+
+
+def get_version(
+    key: Optional[str], url: Optional[str], config: Optional[Dict[str, Any]]
+) -> str:
+    """Getter for the Lamini Platform version
+    Parameters
+    ----------
+    key: Optional[str]
+        Lamini platform API key, if not provided the key stored
+        within ~.lamini/configure.yaml will be used. If either
+        don't exist then an error is raised.
+    url: Optional[str]
+        Lamini platform api url, only needed if a different url is needed outside of the
+        defined ones here: https://github.com/lamini-ai/lamini-platform/blob/main/sdk/lamini/api/lamini_config.py#L68
+            i.e. localhost, staging.lamini.ai, or api.lamini.ai
+            Additionally, LLAMA_ENVIRONMENT can be set as an environment variable
+            that will be grabbed for the url before any of the above defaults
+    config: Dict[str, Any]
+        Configuration storing the key and url
+    Returns
+    -------
+    str
+        Version of the Lamini Platform
+    """
+    api_key = key or get_configured_key(config)
+    api_url = url or get_configured_url(config)
+    return make_web_request(api_key, api_url + "/v1/version", "get", None)
 
 
 async def make_async_web_request(
@@ -160,7 +154,7 @@ async def make_async_web_request(
                 if resp.status == 200:
                     json_response = await resp.json()
                 else:
-                    handle_error(resp)
+                    await handle_error(resp)
     except asyncio.TimeoutError:
         raise APIError(
             "Request Timeout: The server did not respond in time.",

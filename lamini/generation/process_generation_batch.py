@@ -1,8 +1,7 @@
-import asyncio
 import logging
 
-from lamini.api.rest_requests import make_async_web_request
-from lamini.api.utils.batch import Batch
+import lamini
+from lamini.api.pipeline_client import PipelineClient
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +41,10 @@ async def process_generation_batch(args: dict):
         logger.info(f"Sending batch with {len(batch['prompt'])}")
         result = await query_api(client, key, url, json, batch["type"])
     except Exception as e:
-        logger.debug(
-            f"Error in process_generation_batch, type: {type(e)}, message: {e}"
+        logger.error(
+            f"Error in process_generation_batch, type: {type(e)}, message: {e}",
+            stack_info=True,
+            exc_info=True,
         )
         for prompt_obj in batch["prompt"]:
             prompt_obj.error.append(e)
@@ -63,28 +64,26 @@ async def process_generation_batch(args: dict):
             prompt_obj.response = result[i]
     else:
         for i, prompt_obj in enumerate(batch["prompt"]):
-            prompt_obj.response = result["outputs"][i]
-            prompt_obj.finish_reason = result["finish_reason"][i]
+            if lamini.gate_pipeline_batch_completions:
+                prompt_obj.response = result["outputs"][i]
+                prompt_obj.finish_reason = result["finish_reason"][i]
+            else:
+                prompt_obj.response = result[i]
 
 
 async def query_api(client, key, url, json, type):
+    pipeline_client = PipelineClient()
     if type == "embedding":
-        # TODO: Replace make_async_web_request() with Completion.generate()
-        result = await make_async_web_request(client, key, url, "post", json)
-        result = result["embedding"]
+        if lamini.gate_pipeline_batch_completions:
+            result = await pipeline_client.batch_embeddings(client, json)
+        else:
+            result = await pipeline_client.embedding(client, key, url, json)
     else:
-        batch_api = Batch()
-        submit_response = batch_api.submit(
-            prompt=json["prompt"],
-            model_name=json["model_name"],
-            output_type=json["output_type"],
-            max_new_tokens=json["max_new_tokens"],
-        )  # TODO: Don't resubmit work if an error is thrown in the while loop
-        while True:
-            await asyncio.sleep(5)
-            result = batch_api.check_result(submit_response["id"])
-            if result:
-                break
+        if lamini.gate_pipeline_batch_completions:
+            result = await pipeline_client.batch_completions(client, json)
+        else:
+            result = await pipeline_client.completions(client, key, url, json)
+
     return result
 
 
