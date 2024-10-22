@@ -45,6 +45,7 @@ class Train:
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
+        custom_model_name: Optional[str] = None,
     ) -> str:
         """Make a web request to start a training job using the dataset ID provided
 
@@ -67,6 +68,9 @@ class Train:
         is_public: Optional[bool] = None
             Allow public access to the model and dataset
 
+        custom_model_name: Optional[str] = None
+            A human-readable name for the model.
+
         Returns
         -------
         job: str
@@ -83,6 +87,8 @@ class Train:
             req_data["gpu_config"] = gpu_config
         if is_public is not None:
             req_data["is_public"] = is_public
+        if custom_model_name is not None:
+            req_data["custom_model_name"] = custom_model_name
         url = self.api_prefix + "train"
 
         job = make_web_request(self.api_key, url, "post", req_data)
@@ -351,7 +357,6 @@ class Train:
         url = self.api_prefix + "existing-data"
         req_data = {"dataset_id": dataset_id}
         req_data["upload_base_path"] = upload_base_path
-        print(f"EXISTING DATA {self.api_key}")
         return make_web_request(
             self.api_key,
             url,

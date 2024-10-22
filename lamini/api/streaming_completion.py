@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List, Optional, Union, Dict, Any
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import lamini
@@ -13,9 +13,6 @@ class StreamingCompletionObject:
 
     Parameters
     ----------
-    request_params: Dict[str, Any]
-        Parameters to pass into the request
-
     api_key: Optional[str]
         Lamini platform API key, if not provided the key stored
         within ~.lamini/configure.yaml will be used. If either
@@ -37,17 +34,15 @@ class StreamingCompletionObject:
 
     def __init__(
         self,
-        request_params: Dict[str, Any],
         api_url: str,
         api_key: str,
+        id: str,
         polling_interval: int,
         max_errors: int = 0,
     ):
-        self.request_params = request_params
-        self.api_url = api_url
+        self.api_url = api_url + f"/{id}/result"
         self.api_key = api_key
         self.done_streaming = False
-        self.server = None
         self.polling_interval = polling_interval
         self.current_result = None
         self.error_count = 0
@@ -98,20 +93,19 @@ class StreamingCompletionObject:
         if self.done_streaming:
             raise StopIteration()
         time.sleep(self.polling_interval)
-        if self.server is not None:
-            self.request_params["server"] = self.server
         try:
             resp = make_web_request(
                 self.api_key,
                 self.api_url,
-                "post",
-                self.request_params,
+                "get",
             )
+            if len(resp) == 0:
+                self.current_result = None
+                return self.current_result
 
-            self.server = resp["server"]
-            if resp["status"][0]:
+            if all(r is not None for r in resp["finish_reason"]):
                 self.done_streaming = True
-            self.current_result = resp["data"][0]
+            self.current_result = resp
         except Exception as e:
             self.error_count += 1
             if self.error_count > self.max_errors:
@@ -124,9 +118,6 @@ class AsyncStreamingCompletionObject:
 
     Parameters
     ----------
-    request_params: Dict[str, Any]
-        Parameters to pass into the request
-
     api_key: Optional[str]
         Lamini platform API key, if not provided the key stored
         within ~.lamini/configure.yaml will be used. If either
@@ -148,17 +139,15 @@ class AsyncStreamingCompletionObject:
 
     def __init__(
         self,
-        request_params: Dict[str, Any],
         api_url: str,
         api_key: str,
+        id: str,
         polling_interval: int,
         max_errors: int = 5,
     ):
-        self.request_params = request_params
-        self.api_url = api_url
+        self.api_url = api_url + f"/{id}/result"
         self.api_key = api_key
         self.done_streaming = False
-        self.server = None
         self.polling_interval = polling_interval
         self.current_result = None
         self.error_count = 0
@@ -209,21 +198,20 @@ class AsyncStreamingCompletionObject:
         if self.done_streaming:
             raise StopAsyncIteration()
         await asyncio.sleep(self.polling_interval)
-        if self.server is not None:
-            self.request_params["server"] = self.server
         try:
             async with aiohttp.ClientSession() as client:
                 resp = await make_async_web_request(
                     client,
                     self.api_key,
                     self.api_url,
-                    "post",
-                    self.request_params,
+                    "get",
                 )
-            self.server = resp["server"]
-            if resp["status"][0]:
+            if len(resp) == 0:
+                self.current_result = None
+                return self.current_result
+            if all(r is not None for r in resp["finish_reason"]):
                 self.done_streaming = True
-            self.current_result = resp["data"][0]
+            self.current_result = resp
         except Exception as e:
             self.error_count += 1
             if self.error_count > self.max_errors:
@@ -257,23 +245,19 @@ class StreamingCompletion:
         self.config = get_config()
         self.api_key = api_key or lamini.api_key or get_configured_key(self.config)
         self.api_url = api_url or lamini.api_url or get_configured_url(self.config)
-        self.api_prefix = self.api_url + "/v1/"
+        self.api_prefix = self.api_url + "/v3/"
         self.streaming_completions_url = self.api_prefix + "streaming_completions"
 
     def submit(
         self,
         prompt: Union[str, List[str]],
-        model_name: Optional[str] = None,
-        output_type: Optional[dict] = None,
-        max_tokens: Optional[int] = None,
+        model_name: str,
         max_new_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Conduct a web request to the streaming completions api endpoint with the
-        provided prompt to the model_name if provided. Output_type handles the formatting
-        of the output into a structure from this provided output_type.
-        max_tokens and max_new_tokens are related to the total amount of tokens
-        the model can use and generate. max_new_tokens is recommended to be used
-        over max_tokens to adjust model output.
+        provided prompt to the model_name if provided.
+        max_new_tokens are related to the total amount of tokens
+        the model can use and generate.
 
         Parameters
         ----------
@@ -282,12 +266,6 @@ class StreamingCompletion:
 
         model_name: Optional[str] = None
             Which model to use from hugging face
-
-        output_type: Optional[dict] = None
-            Structured output format
-
-        max_tokens: Optional[int] = None
-            Max number of tokens for the model's generation
 
         max_new_tokens: Optional[int] = None
             Max number of new tokens from the model's generation
@@ -301,33 +279,23 @@ class StreamingCompletion:
         req_data = self.make_llm_req_map(
             prompt=prompt,
             model_name=model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
             max_new_tokens=max_new_tokens,
-            server=None,
         )
         resp = make_web_request(
             self.api_key, self.streaming_completions_url, "post", req_data
         )
-        return {
-            "url": self.streaming_completions_url,
-            "params": {**req_data, "server": resp["server"]},
-        }
+        return resp
 
     async def async_submit(
         self,
         prompt: Union[str, List[str]],
-        model_name: Optional[str] = None,
-        output_type: Optional[dict] = None,
-        max_tokens: Optional[int] = None,
+        model_name: str,
         max_new_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Asynchronously send a web request to the streaming completions api endpoint with the
-        provided prompt to the model_name if provided. Output_type handles the formatting
-        of the output into a structure from this provided output_type.
-        max_tokens and max_new_tokens are related to the total amount of tokens
-        the model can use and generate. max_new_tokens is recommended to be used
-        over max_tokens to adjust model output.
+        provided prompt to the model_name if provided.
+        max_new_tokens are related to the total amount of tokens
+        the model can use and generate.
 
         Parameters
         ----------
@@ -336,12 +304,6 @@ class StreamingCompletion:
 
         model_name: Optional[str] = None
             Which model to use from hugging face
-
-        output_type: Optional[dict] = None
-            Structured output format
-
-        max_tokens: Optional[int] = None
-            Max number of tokens for the model's generation
 
         max_new_tokens: Optional[int] = None
             Max number of new tokens from the model's generation
@@ -355,26 +317,18 @@ class StreamingCompletion:
         req_data = self.make_llm_req_map(
             prompt=prompt,
             model_name=model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
             max_new_tokens=max_new_tokens,
-            server=None,
         )
         async with aiohttp.ClientSession() as client:
             resp = await make_async_web_request(
                 client, self.api_key, self.streaming_completions_url, "post", req_data
             )
-        return {
-            "url": self.streaming_completions_url,
-            "params": {**req_data, "server": resp["server"]},
-        }
+        return resp
 
     def create(
         self,
         prompt: Union[str, List[str]],
-        model_name: Optional[str] = None,
-        output_type: Optional[dict] = None,
-        max_tokens: Optional[int] = None,
+        model_name: str,
         max_new_tokens: Optional[int] = None,
         polling_interval: Optional[float] = 1,
     ) -> object:
@@ -388,12 +342,6 @@ class StreamingCompletion:
         model_name: Optional[str] = None
             Which model to use from hugging face
 
-        output_type: Optional[dict] = None
-            Structured output format
-
-        max_tokens: Optional[int] = None
-            Max number of tokens for the model's generation
-
         max_new_tokens: Optional[int] = None
             Max number of new tokens from the model's generation
 
@@ -406,34 +354,20 @@ class StreamingCompletion:
             Newly instantiated object
         """
 
-        self.done_streaming = False
-        self.server = None
-        self.prompt = prompt
-        self.model_name = model_name
-        self.output_type = output_type
-        self.max_tokens = max_tokens
-        self.max_new_tokens = max_new_tokens
-        req_data = self.make_llm_req_map(
-            prompt=prompt,
-            model_name=model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
-            max_new_tokens=max_new_tokens,
-            server=None,
+        req_data = self.submit(
+            prompt=prompt, model_name=model_name, max_new_tokens=max_new_tokens
         )
         return StreamingCompletionObject(
-            req_data,
             api_key=self.api_key,
             api_url=self.streaming_completions_url,
+            id=req_data["id"],
             polling_interval=polling_interval,
         )
 
-    def async_create(
+    async def async_create(
         self,
         prompt: Union[str, List[str]],
-        model_name: Optional[str] = None,
-        output_type: Optional[dict] = None,
-        max_tokens: Optional[int] = None,
+        model_name: str,
         max_new_tokens: Optional[int] = None,
         polling_interval: Optional[float] = 1,
     ) -> object:
@@ -447,12 +381,6 @@ class StreamingCompletion:
         model_name: Optional[str] = None
             Which model to use from hugging face
 
-        output_type: Optional[dict] = None
-            Structured output format
-
-        max_tokens: Optional[int] = None
-            Max number of tokens for the model's generation
-
         max_new_tokens: Optional[int] = None
             Max number of new tokens from the model's generation
 
@@ -465,36 +393,21 @@ class StreamingCompletion:
             Newly instantiated object
         """
 
-        self.done_streaming = False
-        self.server = None
-        self.prompt = prompt
-        self.model_name = model_name
-        self.output_type = output_type
-        self.max_tokens = max_tokens
-        self.max_new_tokens = max_new_tokens
-        req_data = self.make_llm_req_map(
-            prompt=prompt,
-            model_name=model_name,
-            output_type=output_type,
-            max_tokens=max_tokens,
-            max_new_tokens=max_new_tokens,
-            server=None,
+        req_data = await self.async_submit(
+            prompt=prompt, model_name=model_name, max_new_tokens=max_new_tokens
         )
         return AsyncStreamingCompletionObject(
-            req_data,
             api_key=self.api_key,
             api_url=self.streaming_completions_url,
             polling_interval=polling_interval,
+            id=req_data["id"],
         )
 
     def make_llm_req_map(
         self,
         model_name: Optional[str],
         prompt: Union[str, List[str]],
-        output_type: Optional[dict],
-        max_tokens: Optional[int],
         max_new_tokens: Optional[int],
-        server: Optional[str],
     ) -> Dict[str, Any]:
         """Make a web request to the Lamini Platform
 
@@ -506,17 +419,9 @@ class StreamingCompletion:
         prompt: Union[str, List[str]]
             Prompt to send to LLM
 
-        output_type: Optional[dict] = None
-            Structured output format
-
-        max_tokens: Optional[int] = None
-            Max number of tokens for the model's generation
 
         max_new_tokens: Optional[int] = None
             Max number of new tokens from the model's generation
-
-        server: Optional[str]
-            Which Lamini Platform to make the request out to
 
         Returns
         -------
@@ -527,10 +432,6 @@ class StreamingCompletion:
         req_data = {}
         req_data["model_name"] = model_name
         req_data["prompt"] = prompt
-        req_data["output_type"] = output_type
-        req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens
-        if server is not None:
-            req_data["server"] = server
         return req_data

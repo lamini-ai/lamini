@@ -1,8 +1,6 @@
 import logging
-import sys
 from typing import AsyncIterator, Generator, Iterator, Optional, Union
 
-from lamini.api.lamini_config import get_config
 from lamini.api.utils.iterators import async_iter
 from lamini.generation.base_node_object import BaseGenerationNode
 from lamini.generation.base_prompt_object import PromptObject

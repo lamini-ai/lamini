@@ -21,10 +21,10 @@ production:
     key: "<YOUR-KEY-HERE>"
 ```
 
-# Documentation
+## Documentation
 
 Package documentation here: [https://lamini-ai.github.io/](https://lamini-ai.github.io/)
 
-# Github
+## Github
 
 Package source code here: [https://github.com/lamini-ai/lamini](https://github.com/lamini-ai/lamini)

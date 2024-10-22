@@ -176,13 +176,21 @@ def get_configured_url(config: config.Configuration) -> str:
         Extracted platform url
     """
 
-    environment = os.environ.get("LLAMA_ENVIRONMENT")
+    LAMINI_ENV_ENV_VAR_NAME = "LLAMA_ENVIRONMENT"
+    LOCAL_URL_KEY = "local.url"
+    LOCAL_URL_DEFAULT_VALUE = "http://localhost:5001"
+    STAGING_URL_KEY = "staging.url"
+    STAGING_URL_DEFAULT_VALUE = "https://staging.lamini.ai"
+    PUBLIC_URL_DEFAULT_VALUE = "https://api.lamini.ai"
+    PUBLIC_URL_KEY = "production.url"
+
+    environment = os.environ.get(LAMINI_ENV_ENV_VAR_NAME)
     if environment == "LOCAL":
-        url = config.get("local.url", "http://localhost:5001")
+        url = config.get(LOCAL_URL_KEY, LOCAL_URL_DEFAULT_VALUE)
     elif environment == "STAGING":
-        url = config.get("staging.url", "https://staging.lamini.ai")
+        url = config.get(STAGING_URL_KEY, STAGING_URL_DEFAULT_VALUE)
     else:
-        url = config.get("production.url", "https://api.lamini.ai")
+        url = config.get(PUBLIC_URL_KEY, PUBLIC_URL_DEFAULT_VALUE)
     return url
 
 

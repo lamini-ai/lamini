@@ -1,19 +1,20 @@
+import enum
 import json
-import jsonlines
 import logging
 import os
-import pandas as pd
 import time
+from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
-from lamini.api.lamini_config import get_config
-from lamini.api.rest_requests import get_version
+import jsonlines
+import pandas as pd
+import lamini
+from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
+from lamini.api.model_downloader import ModelDownloader, ModelType, DownloadedModel
+from lamini.api.rest_requests import get_version, make_web_request
 from lamini.api.train import Train
 from lamini.api.utils.completion import Completion
 from lamini.api.utils.upload_client import upload_to_blob
-from lamini.error.error import (
-    DownloadingModelError,
-)
-from typing import Dict, Iterable, List, Optional, Union, Any, Generator
+from lamini.error.error import DownloadingModelError
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,12 @@ class Lamini:
         model_name: str,
         api_key: Optional[str] = None,
         api_url: Optional[str] = None,
+        model_type: ModelType = ModelType.transformer,
     ):
         self.config = get_config()
+        api_key = api_key or lamini.api_key or get_configured_key(self.config)
+        api_url = api_url or lamini.api_url or get_configured_url(self.config)
+
         self.model_name = model_name
         self.api_key = api_key
         self.api_url = api_url
@@ -57,20 +62,19 @@ class Lamini:
         self.trainer = Train(api_key, api_url)
         self.upload_file_path = None
         self.upload_base_path = None
+        self.model_downloader = ModelDownloader(api_key, api_url)
+        self.model_type = model_type
 
     def version(self) -> str:
         """Get the version of the Lamini platform
-
         Parameters
         ----------
         None
-
         Returns
         -------
         str
             Returned version fo the platform
         """
-
         return get_version(self.api_key, self.api_url, self.config)
 
     def generate(
@@ -117,17 +121,13 @@ class Lamini:
             specified, otherwise a dictionary matching the output_type is returned.
         """
 
-        result = None
-        try:
-            result = self.completion.generate(
-                prompt=prompt,
-                model_name=model_name or self.model_name,
-                output_type=output_type,
-                max_tokens=max_tokens,
-                max_new_tokens=max_new_tokens,
-            )
-        except DownloadingModelError as e:
-            return e
+        result = self.completion.generate(
+            prompt=prompt,
+            model_name=model_name or self.model_name,
+            output_type=output_type,
+            max_tokens=max_tokens,
+            max_new_tokens=max_new_tokens,
+        )
         if output_type is None:
             if isinstance(prompt, list):
                 result = [single_result["output"] for single_result in result]
@@ -370,6 +370,63 @@ class Lamini:
             )
         return items
 
+    def download_model(
+        self,
+        model_name: Optional[str] = None,
+        model_type: Optional[ModelType] = None,
+        wait: bool = False,
+        wait_time_seconds: int = 60,
+    ) -> DownloadedModel:
+        """Request Lamini Platform to download and cache the specified hugging face model.
+        So that the model can be immediately loaded to GPU memory afterwards.
+        Right now, only support downloading models from Hugging Face.
+
+        Parameters
+        ----------
+        hf_model_name: str
+            The full name of a hugging face model. Like meta-llama/Llama-3.2-11B-Vision-Instruct
+            in https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct
+
+        model_type: ModelType
+            The type of the requested model.
+
+        Raises
+        ------
+        Exception
+            Raised if there is an issue with upload
+
+        Returns
+        -------
+        DownloadedModel
+        """
+        model_name_to_download = self.model_name if model_name is None else model_name
+        model_type_to_download = self.model_type if model_type is None else model_type
+        if not wait:
+            return self.model_downloader.download(
+                model_name_to_download, model_type_to_download
+            )
+
+        start_time = time.time()
+
+        while True:
+            result = self.model_downloader.download(
+                model_name_to_download, model_type_to_download
+            )
+
+            # Check the status of foo()'s result
+            if result.status == "available":
+                return result
+
+            # Check if the specified timeout has been exceeded
+            elapsed_time = time.time() - start_time
+            if elapsed_time > wait_time_seconds:
+                return result
+            INTERVAL_SECONDS = 1
+            time.sleep(INTERVAL_SECONDS)
+
+    def list_models(self) -> List[DownloadedModel]:
+        return self.model_downloader.list()
+
     def train(
         self,
         data_or_dataset_id: Union[
@@ -378,6 +435,7 @@ class Lamini:
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
+        custom_model_name: Optional[str] = None,
     ) -> str:
         """Handler for training jobs through the Trainer object. This submits a training
         job request to the platform using the provided data.
@@ -397,6 +455,9 @@ class Lamini:
 
         is_public: Optional[bool] = None
             Allow public access to the model and dataset
+
+        custom_model_name: Optional[str] = None
+            A human-readable name for the model.
 
         Raises
         ------
@@ -429,6 +490,7 @@ class Lamini:
             finetune_args=finetune_args,
             gpu_config=gpu_config,
             is_public=is_public,
+            custom_model_name=custom_model_name,
         )
         job["dataset_id"] = dataset_id
         return job
@@ -445,6 +507,7 @@ class Lamini:
         finetune_args: Optional[dict] = None,
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
+        custom_model_name: Optional[str] = None,
         **kwargs,
     ) -> str:
         """Handler for training jobs through the Trainer object. This submits a training
@@ -467,6 +530,9 @@ class Lamini:
         is_public: Optional[bool] = None
             Allow public access to the model and dataset
 
+        custom_model_name: Optional[str] = None
+            A human-readable name for the model.
+
         kwargs: Dict[str, Any]
             Key word arguments
                 verbose
@@ -488,6 +554,7 @@ class Lamini:
             finetune_args=finetune_args,
             gpu_config=gpu_config,
             is_public=is_public,
+            custom_model_name=custom_model_name,
         )
 
         try:

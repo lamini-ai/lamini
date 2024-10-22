@@ -1,6 +1,3 @@
-from typing import Any
-
-
 class PromptObject:
     def __init__(self, prompt: str, response: str = None, data: dict = {}) -> None:
         assert isinstance(prompt, str)

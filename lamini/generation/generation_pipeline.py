@@ -30,7 +30,6 @@ class GenerationPipeline:
          define pipeline nodes. The input and output of pipeline nodes should all
          be async iterators.
         """
-        pass
 
     async def __call(
         self,
