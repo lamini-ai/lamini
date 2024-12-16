@@ -11,10 +11,12 @@ from lamini.error.error import (
     APIUnprocessableContentError,
     AuthenticationError,
     DownloadingModelError,
-    ModelNotFound,
+    DuplicateResourceError,
+    ModelNotFoundError,
     RateLimitError,
     RequestTimeoutError,
     UnavailableResourceError,
+    ProjectNotFoundError,
     UserError,
 )
 
@@ -174,23 +176,32 @@ async def handle_error(resp: aiohttp.ClientResponse) -> None:
 
     Raises
     ------
-    ModelNotFound
-        Raises from 594
-
-    RateLimitError
-        Raises from 429
+    UserError
+        Raises from 400
 
     AuthenticationError
         Raises from 401
 
-    UserError
-        Raises from 400
-
     APIUnprocessableContentError
         Raises from 422
 
+    RateLimitError
+        Raises from 429
+
+    DuplicateResourceError
+        Raises from 497
+
+    JobNotFoundError
+        Raises from 498
+
+    ProjectNotFoundError
+        Raises from 499
+
     UnavailableResourceError
         Raises from 503
+
+    ModelNotFoundError
+        Raises from 594
 
     APIError
         Raises from 200
@@ -206,7 +217,21 @@ async def handle_error(resp: aiohttp.ClientResponse) -> None:
             json_response = await resp.json()
         except Exception:
             json_response = {}
-        raise ModelNotFound(json_response.get("detail", "ModelNotFound"))
+        raise ModelNotFoundError(json_response.get("detail", "ModelNotFound"))
+    if resp.status == 499:
+        try:
+            json_response = await resp.json()
+        except Exception:
+            json_response = {}
+        raise ProjectNotFoundError(json_response.get("detail", "ProjectNotFoundError"))
+    if resp.status == 497:
+        try:
+            json_response = await resp.json()
+        except Exception:
+            json_response = {}
+        raise DuplicateResourceError(
+            json_response.get("detail", "DuplicateResourceError")
+        )
     if resp.status == 429:
         try:
             json_response = await resp.json()
@@ -253,7 +278,7 @@ async def handle_error(resp: aiohttp.ClientResponse) -> None:
 
 
 def make_web_request(
-    key: str, url: str, http_method: str, json: Optional[Dict[str, Any]] = None
+    key: str, url: str, http_method: str, json: Optional[Dict[str, Any]] = None, stream: bool = False
 ) -> Dict[str, Any]:
     """Execute a web request
 
@@ -288,7 +313,7 @@ def make_web_request(
     HTTPError
         Raised from many possible reasons:
             if resp.status_code == 594:
-                ModelNotFound
+                ModelNotFoundError
             if resp.status_code == 429:
                 RateLimitError
             if resp.status_code == 401:
@@ -326,10 +351,14 @@ def make_web_request(
         pass
     if http_method == "post":
         resp = requests.post(url=url, headers=headers, json=json)
+    elif http_method == "get" and stream:
+        resp = requests.get(url=url, headers=headers, stream=True)
     elif http_method == "get":
         resp = requests.get(url=url, headers=headers)
+    elif http_method == "delete":
+        resp = requests.delete(url=url, headers=headers)
     else:
-        raise Exception("http_method must be 'post' or 'get'")
+        raise Exception("http_method must be 'post' or 'get' or 'delete'")
     try:
         check_version(resp)
         resp.raise_for_status()
@@ -339,7 +368,23 @@ def make_web_request(
                 json_response = resp.json()
             except Exception:
                 json_response = {}
-            raise ModelNotFound(json_response.get("detail", "ModelNameError"))
+            raise ModelNotFoundError(json_response.get("detail", "ModelNameError"))
+        if resp.status_code == 499:
+            try:
+                json_response = resp.json()
+            except Exception:
+                json_response = {}
+            raise ProjectNotFoundError(
+                json_response.get("detail", "ProjectNotFoundError")
+            )
+        if resp.status_code == 497:
+            try:
+                json_response = resp.json()
+            except Exception:
+                json_response = {}
+            raise DuplicateResourceError(
+                json_response.get("detail", "DuplicateResourceError")
+            )
         if resp.status_code == 429:
             try:
                 json_response = resp.json()
@@ -401,4 +446,7 @@ def make_web_request(
                     raise APIError("500 Internal Server Error")
                 raise APIError(f"API error {description}")
 
-    return resp.json()
+    if stream:
+        return resp
+    else:
+        return resp.json()

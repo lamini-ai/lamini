@@ -20,7 +20,7 @@ gate_pipeline_batch_completions = bool(
     os.environ.get("GATE_PIPELINE_BATCH_COMPLETIONS", False)
 )
 
-__version__ = "3.1.3"
+__version__ = "3.2.3"
 
 # isort: off
 
@@ -30,7 +30,6 @@ from lamini.api.embedding import Embedding
 from lamini.api.model_downloader import ModelDownloader
 from lamini.api.model_downloader import ModelType
 from lamini.api.model_downloader import DownloadedModel
-from lamini.classify.lamini_classifier import LaminiClassifier
 from lamini.generation.generation_node import GenerationNode
 from lamini.generation.generation_pipeline import GenerationPipeline
 from lamini.generation.base_prompt_object import PromptObject

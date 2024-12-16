@@ -1,9 +1,10 @@
-import enum
-from typing import List, Union
+"""
+A class to handle downloading models from the Lamini Platform.
+"""
 
-import lamini
-import numpy as np
-from lamini.api.lamini_config import get_config, get_configured_key, get_configured_url
+import enum
+from typing import List
+
 from lamini.api.rest_requests import make_web_request
 
 
@@ -58,7 +59,7 @@ class ModelDownloader:
         api_url: str,
     ):
         self.api_key = api_key
-        self.api_endpoint = api_url + "/v1/downloaded_models/"
+        self.api_endpoint = api_url + "/v1alpha/downloaded_models/"
 
     def download(self, hf_model_name: str, model_type: ModelType) -> DownloadedModel:
         """Request to Lamini platform for an embedding encoding of the provided

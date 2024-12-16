@@ -6,8 +6,20 @@ class LaminiError(Exception):
         super(LaminiError, self).__init__(message)
 
 
-class ModelNotFound(LaminiError):
+class ProjectNotFoundError(LaminiError):
+    """The project was not found in the database."""
+
+
+class DuplicateResourceError(LaminiError):
+    """The project was not found in the database."""
+
+
+class ModelNotFoundError(LaminiError):
     """The model name is invalid. Make sure it's a valid model in Huggingface or a finetuned model"""
+
+
+class JobNotFoundError(LaminiError):
+    """No jobs were found which match the specified criteria."""
 
 
 class APIError(LaminiError):
