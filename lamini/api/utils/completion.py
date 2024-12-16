@@ -139,6 +139,7 @@ class Completion:
         self,
         model_name: str,
         prompt: Union[str, List[str]],
+        cache_id: Optional[str] = None,
         output_type: Optional[dict] = None,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
@@ -186,4 +187,6 @@ class Completion:
         req_data["max_tokens"] = max_tokens
         if max_new_tokens is not None:
             req_data["max_new_tokens"] = max_new_tokens
+        if cache_id is not None:
+            req_data["cache_id"] = cache_id
         return req_data

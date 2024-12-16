@@ -1,3 +1,4 @@
+import base64
 import enum
 import json
 import logging
@@ -13,6 +14,8 @@ from lamini.api.model_downloader import ModelDownloader, ModelType, DownloadedMo
 from lamini.api.rest_requests import get_version, make_web_request
 from lamini.api.train import Train
 from lamini.api.utils.completion import Completion
+from lamini.api.utils.sql_completion import SQLCompletion
+from lamini.api.utils.sql_token_cache import SQLTokenCache
 from lamini.api.utils.upload_client import upload_to_blob
 from lamini.error.error import DownloadingModelError
 
@@ -59,6 +62,8 @@ class Lamini:
         self.api_key = api_key
         self.api_url = api_url
         self.completion = Completion(api_key, api_url)
+        self.sql_completion = SQLCompletion(api_key, api_url)
+        self.sql_token_cache = SQLTokenCache(api_key, api_url)
         self.trainer = Train(api_key, api_url)
         self.upload_file_path = None
         self.upload_base_path = None
@@ -76,6 +81,23 @@ class Lamini:
             Returned version fo the platform
         """
         return get_version(self.api_key, self.api_url, self.config)
+
+    def generate_sql(
+        self,
+        prompt: Union[str, List[str]],
+        cache_id: str,
+        model_name: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        max_new_tokens: Optional[int] = None,
+    ) -> Union[str, Dict[str, Any]]:
+        result = self.sql_completion.generate(
+            prompt=prompt,
+            cache_id=cache_id,
+            model_name=model_name or self.model_name,
+            max_tokens=max_tokens,
+            max_new_tokens=max_new_tokens,
+        )
+        return result
 
     def generate(
         self,
@@ -181,6 +203,7 @@ class Lamini:
 
         req_data = self.completion.make_llm_req_map(
             prompt=prompt,
+            cache_id=cache_id,
             model_name=model_name or self.model_name,
             output_type=output_type,
             max_tokens=max_tokens,
@@ -421,6 +444,53 @@ class Lamini:
             elapsed_time = time.time() - start_time
             if elapsed_time > wait_time_seconds:
                 return result
+            INTERVAL_SECONDS = 1
+            time.sleep(INTERVAL_SECONDS)
+
+    def add_sql_token_cache(
+            self,
+            col_val_file: Optional[str] = None,
+            wait: bool = False,
+            wait_time_seconds: int = 600,
+    ):
+        col_val_str = None
+
+        if col_val_file:
+            with open(col_val_file, 'r') as f:
+                col_vals = json.load(f)
+                # TODO: in another PR, limit size of col_vals dict
+                col_val_str = json.dumps(col_vals)
+
+        start_time = time.time()
+
+        while True:
+            res = self.sql_token_cache.add_token_cache(
+                base_model_name=self.model_name,
+                col_vals=col_val_str,
+            )
+
+            if not wait:
+                return res
+            if res["status"] == "done":
+                return res
+            elif res["status"] == "failed":
+                raise Exception("SQL token cache build failed")
+
+            elapsed_time = time.time() - start_time
+            if elapsed_time > wait_time_seconds:
+                return res
+            INTERVAL_SECONDS = 1
+            time.sleep(INTERVAL_SECONDS)
+
+    def delete_sql_token_cache(self, cache_id):
+        while True:
+            res = self.sql_token_cache.delete_token_cache(cache_id)
+
+            if res["status"] == "done":
+                return res
+            elif res["status"] == "failed":
+                raise Exception("SQL token cache deletion failed")
+
             INTERVAL_SECONDS = 1
             time.sleep(INTERVAL_SECONDS)
 
