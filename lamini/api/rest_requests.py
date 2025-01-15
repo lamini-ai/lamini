@@ -278,7 +278,12 @@ async def handle_error(resp: aiohttp.ClientResponse) -> None:
 
 
 def make_web_request(
-    key: str, url: str, http_method: str, json: Optional[Dict[str, Any]] = None, stream: bool = False
+    key: str,
+    url: str,
+    http_method: str,
+    json: Optional[Dict[str, Any]] = None,
+    stream: bool = False,
+    files=None,
 ) -> Dict[str, Any]:
     """Execute a web request
 
@@ -350,7 +355,7 @@ def make_web_request(
     except:
         pass
     if http_method == "post":
-        resp = requests.post(url=url, headers=headers, json=json)
+        resp = requests.post(url=url, headers=headers, json=json, files=files)
     elif http_method == "get" and stream:
         resp = requests.get(url=url, headers=headers, stream=True)
     elif http_method == "get":

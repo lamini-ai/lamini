@@ -35,3 +35,4 @@ from lamini.generation.generation_pipeline import GenerationPipeline
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.generation.split_response_node import SplitResponseNode
 from lamini.api.streaming_completion import StreamingCompletion
+from lamini.api.memory_rag import MemoryRAG
