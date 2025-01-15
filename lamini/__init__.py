@@ -20,7 +20,7 @@ gate_pipeline_batch_completions = bool(
     os.environ.get("GATE_PIPELINE_BATCH_COMPLETIONS", False)
 )
 
-__version__ = "3.2.3"
+__version__ = "3.2.5"
 
 # isort: off
 
