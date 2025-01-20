@@ -17,10 +17,10 @@ batch_size = int(os.environ.get("LAMINI_BATCH_SIZE", 5))
 static_batching = bool(os.environ.get("LAMINI_STATIC_BATCHING", False))
 bypass_reservation = bool(os.environ.get("LAMINI_BYPASS_RESERVATION", False))
 gate_pipeline_batch_completions = bool(
-    os.environ.get("GATE_PIPELINE_BATCH_COMPLETIONS", False)
+    os.environ.get("GATE_PIPELINE_BATCH_COMPLETIONS", True)
 )
 
-__version__ = "3.2.5"
+__version__ = "3.2.6"
 
 # isort: off
 
