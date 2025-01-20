@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "3.2.5"
+version = "3.2.6"
 authors = [
   { name="Lamini", email="info@lamini.ai" },
 ]
@@ -26,6 +26,7 @@ dependencies = [
     "azure-storage-blob",
     "scikit-learn",    
     "aiohttp",
+    "faiss-cpu"
 ]
 
 [project.optional-dependencies]
