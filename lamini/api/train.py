@@ -46,6 +46,7 @@ class Train:
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         custom_model_name: Optional[str] = None,
+        train_type: Optional[str] = None,
     ) -> str:
         """Make a web request to start a training job using the dataset ID provided
 
@@ -71,6 +72,12 @@ class Train:
         custom_model_name: Optional[str] = None
             A human-readable name for the model.
 
+        train_type: Optional[str] = None
+            Type of training to perform. One of:
+            - "memory_tuning" (default)
+            - "memory_rag"
+            - "mome_mini"
+
         Returns
         -------
         job: str
@@ -89,6 +96,8 @@ class Train:
             req_data["is_public"] = is_public
         if custom_model_name is not None:
             req_data["custom_model_name"] = custom_model_name
+        if train_type is not None:
+            req_data["train_type"] = train_type
         url = self.api_prefix + "train"
 
         job = make_web_request(self.api_key, url, "post", req_data)

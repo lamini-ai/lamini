@@ -448,15 +448,15 @@ class Lamini:
             time.sleep(INTERVAL_SECONDS)
 
     def add_sql_token_cache(
-            self,
-            col_val_file: Optional[str] = None,
-            wait: bool = False,
-            wait_time_seconds: int = 600,
+        self,
+        col_val_file: Optional[str] = None,
+        wait: bool = False,
+        wait_time_seconds: int = 600,
     ):
         col_val_str = None
 
         if col_val_file:
-            with open(col_val_file, 'r') as f:
+            with open(col_val_file, "r") as f:
                 col_vals = json.load(f)
                 # TODO: in another PR, limit size of col_vals dict
                 col_val_str = json.dumps(col_vals)
@@ -506,6 +506,7 @@ class Lamini:
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         custom_model_name: Optional[str] = None,
+        train_type: Optional[str] = None,
     ) -> str:
         """Handler for training jobs through the Trainer object. This submits a training
         job request to the platform using the provided data.
@@ -528,6 +529,12 @@ class Lamini:
 
         custom_model_name: Optional[str] = None
             A human-readable name for the model.
+
+        train_type: Optional[str] = None
+            Type of training to perform. One of:
+            - "memory_tuning" (default)
+            - "memory_rag"
+            - "mome_mini"
 
         Raises
         ------
@@ -561,6 +568,7 @@ class Lamini:
             gpu_config=gpu_config,
             is_public=is_public,
             custom_model_name=custom_model_name,
+            train_type=train_type,
         )
         job["dataset_id"] = dataset_id
         return job
