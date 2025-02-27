@@ -1,4 +1,5 @@
-from typing import List, Optional, Union
+import json
+from typing import Dict, List, Optional
 
 import requests
 
@@ -111,3 +112,128 @@ class MemoryRAG:
             "get",
         )
         return resp
+    
+    def document_experiment(
+        self,
+        documents: List[str],
+        metadata: Dict = None,
+        pipeline_config: Dict = None,
+        model_config: Dict = None,
+        num_questions: int = 3,
+        chunk_size: int = 1024,
+        role: str = None,
+        question_task: str = None,
+        answer_task: str = None,
+        spot_check: Dict = None,
+        project_id: str = None,
+    ) -> Dict:
+
+        if not documents:
+            raise Exception("At least one document must be provided")
+
+        # Prepare payload
+        payload = {
+            "metadata": metadata or {},
+            "pipeline_config": pipeline_config or {"validate_answers": False, "dedupe": False},
+            "model_config": model_config or {
+                "question_model": self.model_name,
+                "answer_model": self.model_name,
+                "validator_model": self.model_name
+            },
+            "num_questions": num_questions,
+            "chunk_size": chunk_size,
+            "role": role or "You are an AI assistant analyzing a document.",
+            "question_task": question_task or "Generate specific questions that can be answered using only the facts in this content section.",
+            "answer_task": answer_task,
+            "project_id": project_id,
+        }
+
+        if spot_check:
+            payload["spot_check"] = spot_check
+
+        # Prepare files
+        files = [
+            ("files", (doc, open(doc, "rb")))
+            for doc in documents
+        ]
+        
+        files.append(("payload", (None, json.dumps(payload))))
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+        }
+
+        response = requests.request(
+            "POST",
+            self.api_prefix + "/DocumentExperiment",
+            headers=headers,
+            files=files
+        )
+        
+        json_response = response.json()
+        self.job_id = json_response["job_id"]
+        return json_response
+
+    def get_spot_check_results(self) -> Dict:
+
+        if self.job_id is None:
+            raise Exception("job_id must be set to get spot check results")
+
+        resp = make_web_request(
+            self.api_key,
+            self.api_prefix + f"/spot_check/{self.job_id}",
+            "get"
+        )
+        return resp
+    
+    def sql_experiment(
+        self,
+        metadata: Dict = None,
+        pipeline_config: Dict = None,
+        model_config: Dict = None,
+        num_questions: int = 3,
+        role: str = None,
+        schemas: Dict = None,
+        seed_questions: Dict = None,
+        query_task: str = None,
+        question_task: str = None,
+        spot_check: Dict = None,
+        project_id: str = None,
+    ) -> Dict:
+        
+        payload = {
+            "metadata": metadata or {},
+            "pipeline_config": pipeline_config or {"validate_answers": True, "dedupe": True},
+            "model_config": model_config or {
+                "question_model": self.model_name,
+                "answer_model": self.model_name,
+                "validator_model": self.model_name
+            },
+            "num_questions": num_questions,
+            "role": role,
+            "schemas": schemas,
+            "seed_questions": seed_questions,
+            "query_task": query_task,
+            "question_task": question_task,
+            "project_id": project_id,
+        }
+
+        if spot_check:
+            payload["spot_check"] = spot_check
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.request(
+            "POST",
+            self.api_prefix + "/SQLExperiment",
+            headers=headers,
+            json=payload
+        )
+        
+        json_response = response.json()
+        self.job_id = json_response["job_id"]
+        return json_response
+

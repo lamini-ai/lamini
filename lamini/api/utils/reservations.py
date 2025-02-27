@@ -88,7 +88,7 @@ class Reservations:
         if lamini.bypass_reservation:
             self.current_reservation = None
             self.capacity_remaining = 0
-            self.dynamic_max_batch_size = 0
+            self.dynamic_max_batch_size = batch_size
             self.capacity_needed = 0
             self.model_name = model_name
             self.max_tokens = None
@@ -127,7 +127,7 @@ class Reservations:
             logger.warning(f"Error making reservation, continuing without one. {e}")
             self.current_reservation = None
             self.capacity_remaining = 0
-            self.dynamic_max_batch_size = 0
+            self.dynamic_max_batch_size = batch_size
             self.capacity_needed = 0
             self.model_name = model_name
             self.max_tokens = None
