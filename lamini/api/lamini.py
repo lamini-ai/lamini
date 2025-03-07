@@ -586,6 +586,7 @@ class Lamini:
         gpu_config: Optional[dict] = None,
         is_public: Optional[bool] = None,
         custom_model_name: Optional[str] = None,
+        train_type: Optional[str] = None,
         **kwargs,
     ) -> str:
         """Handler for training jobs through the Trainer object. This submits a training
@@ -611,6 +612,12 @@ class Lamini:
         custom_model_name: Optional[str] = None
             A human-readable name for the model.
 
+        train_type: Optional[str] = None
+            Type of training to perform. One of:
+            - "memory_tuning" (default)
+            - "memory_rag"
+            - "mome_mini"
+
         kwargs: Dict[str, Any]
             Key word arguments
                 verbose
@@ -633,6 +640,7 @@ class Lamini:
             gpu_config=gpu_config,
             is_public=is_public,
             custom_model_name=custom_model_name,
+            train_type=train_type,
         )
 
         try:

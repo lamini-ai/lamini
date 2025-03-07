@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 warn_once = False
 
+DEFAULT_TIMEOUT = 60.0  # from default 5 seconds
+
 
 def check_version(resp: Dict[str, Any]) -> None:
     """If the flag of warn_once is not set then print the X-warning
@@ -355,13 +357,17 @@ def make_web_request(
     except:
         pass
     if http_method == "post":
-        resp = requests.post(url=url, headers=headers, json=json, files=files)
+        resp = requests.post(
+            url=url, headers=headers, json=json, files=files, timeout=DEFAULT_TIMEOUT
+        )
     elif http_method == "get" and stream:
-        resp = requests.get(url=url, headers=headers, stream=True)
+        resp = requests.get(
+            url=url, headers=headers, stream=True, timeout=DEFAULT_TIMEOUT
+        )
     elif http_method == "get":
-        resp = requests.get(url=url, headers=headers)
+        resp = requests.get(url=url, headers=headers, timeout=DEFAULT_TIMEOUT)
     elif http_method == "delete":
-        resp = requests.delete(url=url, headers=headers)
+        resp = requests.delete(url=url, headers=headers, timeout=DEFAULT_TIMEOUT)
     else:
         raise Exception("http_method must be 'post' or 'get' or 'delete'")
     try:

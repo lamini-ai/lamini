@@ -9,6 +9,19 @@ from lamini.api.openai_client import BaseOpenAIClient
 
 
 class BaseMemoryExperiment:
+    """Base class for running experiments with memory-enabled LLM pipelines.
+
+    This class provides a framework for executing experiments that combine agentic pipelines
+    with memory capabilities (like Memory Tuning or Memory RAG). It handles pipeline execution,
+    result recording, and client management.
+
+    Attributes:
+        agentic_pipeline (BaseAgenticPipeline): The pipeline to execute
+        record_dir (str): Directory for storing experiment results
+        model (str): The memory model identifier
+        client (BaseOpenAIClient): Client for LLM interactions
+    """
+
     def __init__(
         self,
         agentic_pipeline: BaseAgenticPipeline,
@@ -40,6 +53,22 @@ class BaseMemoryExperiment:
         self.client = client
 
     def get_response_schema(self, output_type: Union[BaseModel, Dict, None]):
+        """Generate a JSON schema for validating structured outputs.
+
+        Converts Pydantic models or dictionary specifications into JSON schemas
+        that can be used to validate LLM outputs.
+
+        Args:
+            output_type (Union[BaseModel, Dict, None]): The output structure specification.
+                Can be a Pydantic model, dict of field definitions, or None.
+
+        Returns:
+            Optional[dict]: A JSON schema for output validation, or None if no type specified.
+
+        Example:
+            >>> schema = experiment.get_response_schema(MyPydanticModel)
+            >>> schema = experiment.get_response_schema({"field1": "str", "field2": "int"})
+        """
         if output_type is None:
             return None
 
@@ -63,6 +92,22 @@ class BaseMemoryExperiment:
     def __call__(
         self, prompt_obj: Union[PromptObject, List[PromptObject]], debug: bool = False
     ):
+        """Execute the memory experiment on one or more prompt objects.
+
+        Runs the configured agentic pipeline with memory capabilities on the provided
+        inputs, with optional debug logging.
+
+        Args:
+            prompt_obj (Union[PromptObject, List[PromptObject]]): The input(s) to process.
+                Can be either a single PromptObject or a list for batch processing.
+            debug (bool, optional): Whether to enable debug logging. Defaults to False.
+
+        Returns:
+            List[PromptObject]: The results of the experiment execution.
+
+        Note:
+            Results are automatically recorded if the pipeline has recording enabled.
+        """
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.logger.debug(f"Running Memory Experiment...")
 

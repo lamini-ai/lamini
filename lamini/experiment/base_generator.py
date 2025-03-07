@@ -11,6 +11,20 @@ from lamini.api.openai_client import BaseOpenAIClient
 
 
 class BaseGenerator:
+    """A base class for implementing LLM-based generators in a pipeline.
+
+    This class provides the foundation for creating generators that process input through
+    language models, with support for structured input/output, templated instructions,
+    and customizable pre/post processing.
+
+    The generator handles:
+    - Instruction template management with metadata injection
+    - LLM client interaction and response processing
+    - Structured output validation
+    - Result storage and transformation
+    - Error handling and logging
+    """
+
     def __init__(
         self,
         name: str,
@@ -62,6 +76,19 @@ class BaseGenerator:
         self.logger.setLevel(logging.INFO)
 
     def __call__(self, prompt_obj: PromptObject, debug=False, *args, **kwargs):
+        """Execute the generator on a prompt object.
+
+        Orchestrates the complete generation process: transform input, generate response,
+        and process results.
+
+        Args:
+            prompt_obj (PromptObject): The input prompt to process
+            debug (bool, optional): Enable debug logging. Defaults to False.
+            *args, **kwargs: Additional arguments passed to generate()
+
+        Returns:
+            PromptObject: The processed prompt object with generation results
+        """
         if debug:
             self.logger.setLevel(logging.DEBUG)
         prompt_obj = self.transform_prompt(prompt_obj)
@@ -76,6 +103,17 @@ class BaseGenerator:
         return result
 
     def get_response_schema(self, output_type: Union[BaseModel, Dict, None]):
+        """Create a JSON schema for validating LLM output.
+
+        Converts Pydantic models or dictionary specifications into JSON schemas
+        that the LLM can use to structure its output.
+
+        Args:
+            output_type (Union[BaseModel, Dict, None]): Output structure specification
+
+        Returns:
+            Optional[dict]: JSON schema for output validation, or None if no type specified
+        """
         if output_type is None:
             return None
 
@@ -97,8 +135,21 @@ class BaseGenerator:
             return response_schema
 
     def generate(self, prompt_obj: PromptObject, debug=False):
-        """Generate a single response treating input as one unit."""
+        """Generate a response using the configured LLM.
 
+        Executes the core generation logic by sending the prepared prompt to the LLM
+        and handling the structured response.
+
+        Args:
+            prompt_obj (PromptObject): The prepared prompt object
+            debug (bool, optional): Enable debug logging. Defaults to False.
+
+        Returns:
+            PromptObject: Prompt object with generated response
+
+        Raises:
+            Exception: If generation fails, with detailed error logging
+        """
         if debug:
             self.logger.setLevel(logging.DEBUG)
 
@@ -127,6 +178,24 @@ class BaseGenerator:
         prompt_obj: PromptObject,
         debug=False,
     ):
+        """Prepare the prompt object for generation.
+
+        Handles:
+        - Preprocessing if defined
+        - Metadata injection into instruction template
+        - Role prefixing if specified
+        - Original prompt preservation
+
+        Args:
+            prompt_obj (PromptObject): The prompt object to transform
+            debug (bool, optional): Enable debug logging. Defaults to False.
+
+        Returns:
+            PromptObject: The transformed prompt object
+
+        Raises:
+            ValueError: If required metadata keys are missing from input data
+        """
         if debug:
             self.logger.setLevel(logging.DEBUG)
 
@@ -180,7 +249,26 @@ class BaseGenerator:
         return prompt_obj
 
     def process_results(self, prompt_obj: PromptObject):
-        """Processes results returned from self.generate()"""
+        """Process and store generation results.
+
+        Handles:
+        - Storing results in prompt object data
+        - Applying postprocessing if defined
+        - Maintaining data consistency
+        - Supporting result splitting into multiple objects
+
+        Args:
+            prompt_obj (PromptObject): Prompt object with generation results
+
+        Returns:
+            Union[PromptObject, List[PromptObject]]: Processed results, possibly split
+                into multiple prompt objects by postprocessing
+
+        Note:
+            - Stores results under {generator_name}_output in data
+            - Updates prompt object data with structured output fields if defined
+            - Preserves original prompt reference in any new prompt objects
+        """
         assert prompt_obj is not None
 
         # Store the result of this generator in the data

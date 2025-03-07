@@ -81,7 +81,7 @@ class BaseAgenticPipeline:
         data_io = []
         prompt_response = []
         full_data = []
-        for obj in prompt_objects:
+        for obj in [obj for obj in prompt_objects if obj is not None]:
             if not is_final_results:
                 full_data.append(
                     {
@@ -119,7 +119,7 @@ class BaseAgenticPipeline:
 
         # Save to CSV
         if is_final_results:
-            pd.DataFrame(data_io).to_csv(f"{data_io_path}.csv", index=False)
+            pd.DataFrame(data_io).to_json(f"{data_io_path}.jsonl", orient="records", lines=True)
         else:
             # Check if files exist to determine whether to write headers
             write_header_full = not os.path.exists(f"{full_path}.csv")
@@ -128,20 +128,20 @@ class BaseAgenticPipeline:
                 f"{prompt_response_path}.csv"
             )
 
-            pd.DataFrame(full_data).to_csv(
-                f"{full_path}.csv", mode="a", header=write_header_full, index=False
+            pd.DataFrame(full_data).to_json(
+                f"{full_path}.jsonl", mode="a", orient="records", lines=True
             )
-            pd.DataFrame(data_io).to_csv(
-                f"{data_io_path}.csv",
+            pd.DataFrame(data_io).to_json(
+                f"{data_io_path}.jsonl",
                 mode="a",
-                header=write_header_data_io,
-                index=False,
+                orient="records",
+                lines=True,
             )
-            pd.DataFrame(prompt_response).to_csv(
-                f"{prompt_response_path}.csv",
+            pd.DataFrame(prompt_response).to_json(
+                f"{prompt_response_path}.jsonl",
                 mode="a",
-                header=write_header_prompt_response,
-                index=False,
+                orient="records",
+                lines=True,
             )
 
     def _record_step(
@@ -152,11 +152,37 @@ class BaseAgenticPipeline:
         self._process_and_save_data(prompt_obj, step_name=step_name)
 
     def _record_results(self, results: List[PromptObject]):
+        """Record the final results of the pipeline execution.
+
+        This internal method handles saving the final aggregated results after all pipeline
+        steps have completed. It delegates to _process_and_save_data with is_final_results=True.
+
+        Args:
+            results (List[PromptObject]): The final results from the complete pipeline execution.
+        """
         self._process_and_save_data(results, is_final_results=True)
 
     def run_pipeline(
         self, prompt_obj: PromptObject, debug: bool = False, start_from: int = 0
     ):
+        """Execute the pipeline on a single PromptObject.
+
+        Runs the sequence of generators and validators defined in self.order, starting from
+        the specified index. Handles branching logic when a step returns multiple objects.
+
+        Args:
+            prompt_obj (PromptObject): The input object to process through the pipeline
+            debug (bool, optional): Whether to enable debug logging. Defaults to False.
+            start_from (int, optional): Index in self.order to start execution from. 
+                Defaults to 0.
+
+        Returns:
+            Union[PromptObject, List[PromptObject]]: The result(s) of the pipeline execution.
+                May be a single PromptObject or a list if any step produced multiple outputs.
+
+        Raises:
+            KeyboardInterrupt: Allows clean interruption of pipeline execution
+        """
         with tqdm(self.order[start_from:], leave=False) as pipeline_tracker:
             try:
                 for i, step in enumerate(
@@ -197,6 +223,23 @@ class BaseAgenticPipeline:
     def __call__(
         self, prompt_obj: Union[PromptObject, List[PromptObject]], debug: bool = False
     ):
+        """Execute the pipeline on one or more PromptObjects.
+
+        Main entry point for pipeline execution. Handles both single items and batches,
+        with proper error handling and result recording.
+
+        Args:
+            prompt_obj (Union[PromptObject, List[PromptObject]]): The input(s) to process.
+                Can be either a single PromptObject or a list of them for batch processing.
+            debug (bool, optional): Whether to enable debug logging. Defaults to False.
+
+        Returns:
+            List[PromptObject]: The results of pipeline execution. Always returns a list,
+                even for single inputs.
+
+        Raises:
+            AssertionError: If batch input contains non-PromptObject items
+        """
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
         if isinstance(prompt_obj, PromptObject):
