@@ -6,10 +6,37 @@ from lamini.experiment.base_generator import BaseGenerator
 
 
 class DefaultOutputType(BaseModel):
+    """Default output type for validators.
+
+    A simple Pydantic model that includes only an is_valid boolean field.
+
+    Attributes:
+        is_valid (bool): Indicates whether validation passed
+    """
     is_valid: bool
 
 
 class BaseValidator(BaseGenerator):
+    """Base class for implementing validators in a pipeline.
+
+    Validators are specialized generators that always include a boolean validation field
+    in their output. They inherit from BaseGenerator and add validation-specific
+    functionality.
+
+    Args:
+        name (str): Name of the validator
+        instruction (str): Template for the validation prompt
+        client (BaseOpenAIClient, optional): Client for LLM interactions
+        output_type (Optional[Dict], optional): Output structure specification
+        model (Optional[str], optional): Model identifier for LLM
+        role (Optional[str], optional): System role prefix for prompts
+        instruction_search_pattern (Optional[str], optional): Regex for finding template variables
+        is_valid_field (str, optional): Name of the boolean validation field
+
+    Raises:
+        ValueError: If output_type is specified but doesn't include a proper boolean validation field
+    """
+
     def __init__(
         self,
         name: str,
@@ -55,8 +82,21 @@ class BaseValidator(BaseGenerator):
             self.output_type = DefaultOutputType
 
     def build_dynamic_model(self, data: dict) -> Type[BaseModel]:
-        """
-        Build a Pydantic model class with fields inferred from data.
+        """Build a Pydantic model from a dictionary specification.
+
+        Creates a dynamic Pydantic model with fields based on the input dictionary,
+        ensuring the validation field is present.
+
+        Args:
+            data (dict): Field specifications where values indicate field types
+
+        Returns:
+            Type[BaseModel]: A new Pydantic model class with the specified fields
+
+        Note:
+            - "bool" strings are converted to boolean fields
+            - Other values use their Python type
+            - The validation field is always added if not present
         """
         fields = {}
 
@@ -77,6 +117,17 @@ class BaseValidator(BaseGenerator):
         return create_model("DynamicModel", **fields)
 
     def __call__(self, prompt_obj, debug=False):
+        """Execute the validator on a prompt object.
+
+        Extends the base generator's call method to handle validation-specific processing.
+
+        Args:
+            prompt_obj (PromptObject): The prompt object to validate
+            debug (bool, optional): Enable debug logging. Defaults to False.
+
+        Returns:
+            PromptObject: The processed prompt object with validation results
+        """
         result = super().__call__(prompt_obj, debug=debug)
 
         return result

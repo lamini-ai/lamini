@@ -18,14 +18,12 @@ class BaseOpenAIClient:
         # self.api_url = "https://staging.lamini.ai"
 
         self.client = openai.OpenAI(
-            api_key=self.api_key, base_url=f"{self.api_url}/v1alpha/infv2"
+            api_key=self.api_key, base_url=f"{self.api_url}/inf"
         )
 
     async def initialize_async_client(self):
         """Create async client with same configuration"""
-        return openai.AsyncOpenAI(
-            api_key=self.api_key, base_url=f"{self.api_url}/v1alpha/infv2"
-        )
+        return openai.AsyncOpenAI(api_key=self.api_key, base_url=f"{self.api_url}/inf")
 
     async def execute_completion(
         self,

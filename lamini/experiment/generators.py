@@ -16,8 +16,13 @@ import sqlite3
 
 
 class QuestionsToConceptsGenerator(BaseGenerator):
-    """
-    Takes a list of questions and returns a list of concepts that are relevant to the questions.
+    """Generator that extracts concepts from questions.
+
+    Processes a list of questions and extracts key concepts, creating separate
+    PromptObjects for each identified concept.
+
+    Note:
+        Expects response in format {"concepts_list": "concept1, concept2, concept3"}
     """
 
     def __init__(
@@ -60,6 +65,17 @@ class QuestionsToConceptsGenerator(BaseGenerator):
         )
 
     def postprocess(self, result):
+        """Process the LLM response into individual concept PromptObjects.
+
+        Converts the comma-separated concepts string into a list of individual
+        PromptObjects, each containing a single concept.
+
+        Args:
+            result (PromptObject): Contains response with concepts_list field
+
+        Returns:
+            List[PromptObject]: List of new PromptObjects, one per concept
+        """
         # Turn the string result, formatted as {"concepts_list": "concept1, concept2, concept3"}, into a list of concept objects
         concepts_list_object = result.response["concepts_list"]
 
@@ -177,7 +193,18 @@ class ConceptToSQLInterpretationGenerator(BaseGenerator):
 
 
 class BaseSQLGenerator(BaseGenerator):
-    """Base class for SQL-related generators with common database functionality."""
+    """Base class for SQL-related generators with database functionality.
+
+    Provides common database connection and schema management capabilities for
+    SQL-focused generators. Supports multiple database types with extensible
+    connection handling.
+
+    Attributes:
+        SUPPORTED_DB_TYPES (dict): Mapping of database types to connection factories
+        metadata_keys (list): Required schema metadata key
+        conn: Active database connection
+        schema (str): Database schema information
+    """
 
     SUPPORTED_DB_TYPES = {
         "sqlite": lambda params: sqlite3.connect(
@@ -230,11 +257,25 @@ class BaseSQLGenerator(BaseGenerator):
 
     @classmethod
     def add_db_support(cls, db_type, connection_factory):
-        """Add support for a new database type."""
+        """Add support for a new database type.
+
+        Args:
+            db_type (str): Identifier for the database type
+            connection_factory (Callable): Function to create database connections
+        """
         cls.SUPPORTED_DB_TYPES[db_type] = connection_factory
 
     def _initialize_db(self, db_type, db_params):
-        """Initialize database connection."""
+        """Initialize connection to the specified database.
+
+        Args:
+            db_type (str): Type of database to connect to
+            db_params (Union[str, dict]): Connection parameters
+
+        Raises:
+            ValueError: If db_type is not supported
+            Exception: If connection fails
+        """
         if db_type not in self.SUPPORTED_DB_TYPES:
             raise ValueError(
                 f"Unsupported database type: {db_type}. "
@@ -402,6 +443,16 @@ class SchemaToSQLGenerator(BaseSQLGenerator):
 
 
 class SQLDebuggerGenerator(BaseSQLGenerator):
+    """Generator for debugging and fixing SQL queries.
+
+    Analyzes SQL queries that produced errors and generates corrected versions
+    based on the error message and database schema.
+
+    Note:
+        Includes specific rules for common SQL issues like case sensitivity,
+        aliasing, and GROUP BY clauses.
+    """
+
     def __init__(
         self,
         model,
@@ -457,12 +508,31 @@ class SQLDebuggerGenerator(BaseSQLGenerator):
         )
 
     def __call__(self, prompt_obj, debug=False):
+        """Execute the SQL debugger on a prompt object.
+
+        Adds schema information to the prompt object before processing.
+
+        Args:
+            prompt_obj (PromptObject): Contains error_message and error_sql
+            debug (bool, optional): Enable debug logging. Defaults to False.
+
+        Returns:
+            PromptObject: Contains corrected SQL and debugging steps
+        """
         prompt_obj.data["schema"] = self.schema
         return super().__call__(prompt_obj, debug)
 
 
 class ComparativeQuestionGenerator(BaseGenerator):
-    """A generator class to create comparative questions"""
+    """Generator for creating comparative analysis questions.
+
+    Transforms single questions into pairs of comparative questions that explore
+    relationships between different groups, time periods, or conditions.
+
+    Note:
+        Generated questions maintain the original query's intent while adding
+        comparative elements.
+    """
 
     def __init__(
         self,
@@ -520,11 +590,19 @@ class ComparativeQuestionGenerator(BaseGenerator):
         )
 
     def postprocess(self, prompt_obj):
-        """
-        Convert response into a list of comparative questions with error handling.
+        """Process model response into comparative questions.
 
-        :param prompt_obj: An object containing the response from the model
-        :return: Modified prompt_obj with processed comparative questions
+        Converts the model's response into a structured format of comparative
+        questions with error handling.
+
+        Args:
+            prompt_obj (PromptObject): Contains model response with q1 and q2
+
+        Returns:
+            PromptObject: Updated with processed comparative questions in comps field
+
+        Note:
+            Handles empty responses and processing errors gracefully
         """
         if not prompt_obj.response:
             # Handle cases where the model returns an empty response
@@ -594,7 +672,7 @@ class EdgeCaseQuestionGenerator(BaseGenerator):
 
             Focus on Extreme or Unusual Conditions: Modify the question to explore outliers, rare events, or boundary cases. Think about what edge conditions might be interesting to analyze, such as data points that fall outside typical patterns or expectations.
             Modify Filters or Conditions: Adjust the filters, conditions, or aggregations in the SQL query to reflect these unusual or extreme scenarios. For example, using specific thresholds or conditions that focus on outliers or rare events (e.g., values above a certain threshold or extremely low frequencies).
-            Maintain Original Question Intent: Ensure that the new questions still align with the original question’s intent while exploring the extreme or unusual conditions.
+            Maintain Original Question Intent: Ensure that the new questions still align with the original question's intent while exploring the extreme or unusual conditions.
             Answerability with Schema and Glossary: The new questions must be answerable using the provided schema and glossary. Use valid tables and columns as described in the schema to construct your queries.
             SQL Query Validity: The SQL queries generated must be syntactically valid and consistent with the schema.
 
@@ -974,17 +1052,15 @@ class PatternQuestionGenerator(BaseGenerator):
 
 
 class QuestionDecomposerGenerator(BaseGenerator):
-    """
-    Takes a complex question and its SQL query and breaks it down into simpler sub-questions.
+    """Generator for breaking down complex questions into sub-questions.
 
-    Attributes:
-        model: The language model to use for generating the sub-questions.
-        client: The client connected to the language model.
-        name: Optional name for the generator.
-        role: The role description for the language model.
-        instruction: Instructions for the task.
-        output_type: The expected output format for the sub-questions.
-        input: The input format required by the generator.
+    Decomposes complex analytical questions into simpler, focused sub-questions
+    that can be answered using the available schema and combined to address
+    the original question.
+
+    Note:
+        Generates three sub-questions that maintain the original question's intent
+        while simplifying the logical complexity.
     """
 
     def __init__(
