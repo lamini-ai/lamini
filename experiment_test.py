@@ -3,7 +3,7 @@ import os
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.experiment.base_generator import BaseGenerator
 from lamini.experiment.base_validator import BaseValidator
-from lamini.experiment.base_agentic_pipeline import BaseAgenticPipeline
+from lamini.experiment.pipeline.base_agentic_pipeline import BaseAgenticPipeline
 from lamini.experiment.base_memory_experiment import BaseMemoryExperiment
 from lamini.experiment.memory_rag_experiment import MemoryRAGExperiment
 from lamini.api.openai_client import BaseOpenAIClient
@@ -25,7 +25,6 @@ from lamini.experiment.generators import (
 
 from lamini.experiment.validators import (
     FactualityValidator,
-    SQLValidator,
     SQLScoreValidator,
 )
 
@@ -197,76 +196,9 @@ def main():
 
             traceback.print_exc()
 
-    sql_validator = SQLValidator(
-        model=models["llama"],
-        db_type="sqlite",
-        db_params={"database": db_path},
-        sql_key="sql_query",
-    )
-    test_sql_validator(sql_validator)
-
     # Cleanup
     if os.path.exists(db_path):
         os.remove(db_path)
-
-def test_sql_validator(validator):
-    # Autofixes invalid query by removing non-SQL stuff
-    prompt_obj = PromptObject(
-	prompt="test prompt obj",
-        data={
-            "sql_query": "JUNK SELECT COUNT(product) FROM sales;junk",
-        },
-    )
-    r = validator(prompt_obj)
-    assert r.response == {'is_valid': True,
-                          'error': None,
-                          'explanation': 'Query is valid and can be executed',
-                         }
-    assert r.data == {'sql_query': 'SELECT COUNT(product) FROM sales;'}
-
-    # Original query is valid, no autofix needed
-    prompt_obj = PromptObject(
-	prompt="test prompt obj",
-        data={
-            "sql_query": "SELECT COUNT(product) FROM sales;",
-        },
-    )
-    r = validator(prompt_obj)
-    assert r.response == {'is_valid': True,
-                          'error': None,
-                          'explanation': 'Query is valid and can be executed',
-                         }
-    assert r.data == {'sql_query': 'SELECT COUNT(product) FROM sales;'}
-
-    # Non-existent column, does not autofix
-    prompt_obj = PromptObject(
-	prompt="test prompt obj",
-        data={
-            "sql_query": "SELECT weird FROM sales;",
-        },
-    )
-    r = validator(prompt_obj)
-    assert r.response == {'is_valid': False,
-                          'error': 'no such column: weird',
-                          'explanation': 'Query is invalid: no such column: weird',
-                         }
-    assert r.data == {'sql_query': 'SELECT weird FROM sales;'}
-
-    # Syntax invalid, validator attempts to autofix the query by removing non-SQL,
-    # but the result query is still invalid due to non-existent column,
-    # so original query is returned in response
-    prompt_obj = PromptObject(
-	prompt="test prompt obj",
-        data={
-            "sql_query": "JUNK SELECT weird FROM sales;",
-        },
-    )
-    r = validator(prompt_obj)
-    assert r.response == {'is_valid': False,
-                          'error': 'near "JUNK": syntax error',
-                          'explanation': 'Query is invalid: near "JUNK": syntax error',
-                         }
-    assert r.data == {'sql_query': 'JUNK SELECT weird FROM sales;'}
 
 if __name__ == "__main__":
     main()

@@ -4,7 +4,7 @@ import asyncio
 from pydantic import BaseModel
 
 from lamini.generation.base_prompt_object import PromptObject
-from lamini.experiment.base_agentic_pipeline import BaseAgenticPipeline
+from lamini.experiment.pipeline import BaseAgenticPipeline
 from lamini.index.lamini_index import LaminiIndex
 from lamini.experiment.base_memory_experiment import BaseMemoryExperiment
 from lamini.experiment.base_memory_rag import BaseMemoryRAG

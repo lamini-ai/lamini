@@ -8,3 +8,4 @@ faiss-cpu
 azure-storage-blob
 aiohttp
 scikit-learn
+sqlglot

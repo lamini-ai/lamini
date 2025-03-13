@@ -42,9 +42,12 @@ from lamini.api.memory_rag import MemoryRAG
 from lamini.generation.base_prompt_object import PromptObject
 from lamini.experiment.base_generator import BaseGenerator
 from lamini.experiment.base_validator import BaseValidator
-from lamini.experiment.base_agentic_pipeline import BaseAgenticPipeline
+from lamini.experiment.pipeline.base_agentic_pipeline import BaseAgenticPipeline
 from lamini.experiment.base_memory_experiment import BaseMemoryExperiment
 from lamini.experiment.memory_rag_experiment import MemoryRAGExperiment
+from lamini.experiment.error_analysis_concepts import ErrorAnalysis
+from lamini.experiment.error_analysis_sql import SQLErrorAnalysis
+from lamini.experiment.error_analysis_eval import SQLExecutionPipeline
 from lamini.api.openai_client import BaseOpenAIClient
 
 from lamini.experiment.generators import (
