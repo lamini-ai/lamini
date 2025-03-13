@@ -4,7 +4,7 @@ import os
 from pydantic import BaseModel
 
 from lamini.generation.base_prompt_object import PromptObject
-from lamini.experiment.base_agentic_pipeline import BaseAgenticPipeline
+from lamini.experiment.pipeline.base_agentic_pipeline import BaseAgenticPipeline
 from lamini.api.openai_client import BaseOpenAIClient
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lamini"
-version = "3.2.12"
+version = "3.2.16"
 authors = [
   { name="Lamini", email="info@lamini.ai" },
 ]
@@ -24,10 +24,12 @@ dependencies = [
     "jsonlines",
     "pandas",
     "azure-storage-blob",
-    "scikit-learn",    
+    "scikit-learn",
+    "sqlglot",
     "aiohttp",
     "faiss-cpu", 
     "openai",
+    "sqlalchemy",
 ]
 
 [project.optional-dependencies]
@@ -50,6 +52,9 @@ packages = [
     "lamini.index",
     "lamini.one_evaler",
     "lamini.experiment",
+    "lamini.experiment.pipeline",
+    "lamini.experiment.generators",
+    "lamini.experiment.validators",
 ]
 
 [tool.setuptools.package-data]

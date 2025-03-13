@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 warn_once = False
 
-DEFAULT_TIMEOUT = 60.0  # from default 5 seconds
+DEFAULT_TIMEOUT = 90.0  # from default 5 seconds
 
 
 def check_version(resp: Dict[str, Any]) -> None:

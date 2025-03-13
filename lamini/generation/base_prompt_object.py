@@ -1,11 +1,11 @@
 class PromptObject:
-    def __init__(self, prompt: str, response: str = None, data: dict = {}) -> None:
+    def __init__(self, prompt: str, response: str = None, data: dict = None) -> None:
         assert isinstance(prompt, str)
         #        assert isinstance(data, dict)
         self.prompt = prompt
         self.response = response
         self.error = []
-        self.data = data
+        self.data = data if data is not None else {}
         # Records the input prompt to the first node of the pipeline.
         self.orig_prompt: PromptObject = None
         self.finish_reason = None
