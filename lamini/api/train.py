@@ -103,7 +103,7 @@ class Train:
         job = make_web_request(self.api_key, url, "post", req_data)
         self.job_id = job["job_id"]
         print(
-            f"Tuning job submitted! Check status of job {self.job_id} here: {self.api_url}/train/{self.job_id}"
+            f"Your job ({self.job_id}) has been submitted! Track its status at your private link: {self.api_url}/tune/{self.job_id}"
         )
 
         return job

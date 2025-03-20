@@ -2,8 +2,17 @@ import json
 import re
 import sqlglot
 
-def extract_sql_part(query):
+def extract_sql_part(query, db_type):
+    try:
+        sqlglot.parse(sql, dialect=db_type)
+        return query
+    except:
+        pass
+
+    init_tokens = ['select', 'with']
     i_codeblock = query.find('```')
+    query = query.strip()
+    last_semicolon = False
 
     if i_codeblock != -1:
         query = query[i_codeblock:]
@@ -11,7 +20,6 @@ def extract_sql_part(query):
     queryl = query.lower()
 
     if not query.lower().startswith('with'):
-        init_tokens = ['select', 'with']
         i_start = None
 
         for init_token in init_tokens:
@@ -23,14 +31,24 @@ def extract_sql_part(query):
 
         query = query[i_start:]
 
-    i_semicolon = query.find(';')
+    if query.endswith(';'):
+        query = query.rstrip(';')
+        last_semicolon = True
+
+    i_semicolon = query.rfind(';')
 
     if i_semicolon != -1:
-        query = query[:i_semicolon + 1]    
+        last_part = query[i_semicolon + 1 :].lower()
+
+        if all(token not in last_part for token in init_tokens):
+            query = query[: i_semicolon + 1]
+
+    if last_semicolon and not query.endswith(';'):
+        query += ';'
 
     return query
 
-def fix_invalid_col_in_select(ast, col_table_map, invalid_ident):
+def fix_invalid_col_in_select(ast, col_table_map, invalid_ident, db_type):
     selects = ast.find_all(sqlglot.expressions.Select)
     eq_pairs = find_eqs(ast)
     aliases = find_aliases(ast)
@@ -85,7 +103,7 @@ def fix_invalid_col_in_select(ast, col_table_map, invalid_ident):
                     updated = True
 
     if updated:
-        return ast.sql()
+        return ast.sql(dialect=db_type)
     else:
         return None
 
@@ -126,24 +144,6 @@ def find_eqs(ast):
 
     return eq_pairs
 
-# For some reason, the sqlglot library tends to automatically add `NULLS LAST` at
-# the end of the query.  This doesn't change syntax or semantic of the SQL.
-# We remove `NULL LAST` here, even though it doesn't break anything
-def strip_special_suffix(query, original_sql):
-    if original_sql.endswith('NULLS LAST') or original_sql.endswith('NULLS LAST;') or \
-       original_sql.endswith('nulls last') or original_sql.endswith('nulls last;'):
-        return query
-    if query.endswith('NULLS LAST'):
-        query = query.rstrip('NULLS LAST')
-    elif query.endswith('nulls last'):
-        query = query.rstrip('nulls last')
-    elif query.endswith('NULLS LAST;'):
-        query = query.rstrip('NULLS LAST;') + ';'
-    elif query.endswith('nulls last;'):
-        query = query.rstrip('nulls last;') + ';'        
-
-    return query
-
 def fix_invalid_col(sql, col_table_map, db_type, error_msg=''):
     invalid_ident = None
 
@@ -172,10 +172,37 @@ def fix_invalid_col(sql, col_table_map, db_type, error_msg=''):
     if ast == None: # this is when sql is just ;
         return sql
     
-    fixed = fix_invalid_col_in_select(ast, col_table_map, invalid_ident)
+    fixed = fix_invalid_col_in_select(ast, col_table_map, invalid_ident, db_type)
 
     if fixed:
-        fixed = strip_special_suffix(fixed, sql)
         return fixed
     else:
         return sql
+
+# This is a snowflake specific fix for now
+# This autofix is currently only invoked with gpt4
+# Sometimes a query has multiple statements like
+#    SELECT a FROM b; SELECT c FROM d; ...
+# The first one is always not needed/incorrect, so remove the first one
+# If end result has multiple SELECTs, then must wrap them in BEGIN ... END
+def fix_stmt_count(sql, db_type):
+    if db_type != 'snowflake':
+        return sql
+
+    try:
+        ast_list = sqlglot.parse(sql, dialect=db_type)
+    except:
+        return sql
+
+    if len(ast_list) <= 1 or None in ast_list:
+        return sql
+
+    if len(ast_list) == 2:
+        new_sql = ast_list[-1].sql(dialect=db_type)
+    else:
+        new_sql_list = []
+        for i in range(1, len(ast_list)):
+            new_sql_list.append(ast_list[i].sql(dialect=db_type))
+        new_sql = 'BEGIN ' + '; '.join(new_sql_list) + '; END'
+
+    return new_sql
