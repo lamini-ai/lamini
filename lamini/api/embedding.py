@@ -13,7 +13,7 @@ class Embedding:
     Parameters
     ----------
     model_name: str = None
-        LLM hugging face ID, e.g. "meta-llama/Meta-Llama-3.1-8B-Instruct"
+        LLM hugging face ID, e.g. "meta-llama/Llama-3.1-8B-Instruct"
 
     api_key: Optional[str]
         Lamini platform API key, if not provided the key stored

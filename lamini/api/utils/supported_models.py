@@ -10,7 +10,7 @@ FALCON_7B = "tiiuae/falcon-7b"
 FALCON_7B_INST = "tiiuae/falcon-7b-instruct"
 FALCON_11B = "tiiuae/falcon-11B"
 STAR_CODER_2_7B = "bigcode/starcoder2-7b"
-LLAMA_31_8B_INST = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+LLAMA_31_8B_INST = "meta-llama/Llama-3.1-8B-Instruct"
 MISTRAL_7B_INST_V03 = "mistralai/Mistral-7B-Instruct-v0.3"
 TINY_MISTRAL = "hf-internal-testing/tiny-random-MistralForCausalLM"
 

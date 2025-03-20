@@ -12,6 +12,7 @@ from .paraphrasing_question_generator import ParaphrasingQuestionGenerator
 from .pattern_question_generator import PatternQuestionGenerator
 from .question_decomposer_generator import QuestionDecomposerGenerator
 from .variation_question_generator import VariationQuestionGenerator
+from .save_generator import SaveGenerator
 
 __all__ = [
     'QuestionsToConceptsGenerator',
@@ -28,4 +29,5 @@ __all__ = [
     'PatternQuestionGenerator',
     'QuestionDecomposerGenerator',
     'VariationQuestionGenerator',
+    'SaveGenerator'
 ]

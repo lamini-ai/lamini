@@ -62,7 +62,7 @@ class SQLValidator(BaseSQLValidator):
         except Exception as e:
             prompt_obj.response = self.create_error_response(str(e))
 
-        valid_autofixes = set(['extract_sql', 'fix_column'])
+        valid_autofixes = set(['extract_sql', 'fix_statement_count', 'fix_column'])
         autofixes = valid_autofixes - set(self.skip_autofixes)
 
         if len(autofixes) + len(self.skip_autofixes) > len(valid_autofixes):
@@ -70,10 +70,13 @@ class SQLValidator(BaseSQLValidator):
 
         if not db_can_execute and len(autofixes) > 0:
             if 'extract_sql' in autofixes and query:
-                query = sql_autofix.extract_sql_part(query)
+                query = sql_autofix.extract_sql_part(query, self.db_type)
+            if 'fix_statement_count' in autofixes and query:
+                if 'gpt4' in self.model and self.db_type == 'snowflake':
+                    query = sql_autofix.fix_stmt_count(query, self.db_type)
             if 'fix_column' in autofixes and query:
                 query = sql_autofix.fix_invalid_col(query, self.col_table_map, self.db_type)
-            
+
             if query:
                 if not query.endswith(';'):
                     query += ';'            
