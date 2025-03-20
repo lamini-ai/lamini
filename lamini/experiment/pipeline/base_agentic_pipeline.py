@@ -10,6 +10,7 @@ from copy import deepcopy
 from lamini.experiment.utils import remove_non_ascii
 from lamini.experiment.generators import BaseGenerator, SaveGenerator
 from lamini.experiment.validators import BaseValidator
+from lamini.generation.base_prompt_object import PromptObject
 from lamini.experiment.base_experiment_object import ExperimentObject
 
 class PipelineStep:
@@ -390,13 +391,13 @@ class BaseAgenticPipeline:
         """
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         exp_objs = []
-        if isinstance(prompt_obj, ExperimentObject):
+        if isinstance(prompt_obj, PromptObject):
             self.logger.debug(f"Running Agentic Pipeline on data: {prompt_obj.data}...")
             exp_object = ExperimentObject(prompt_obj.data, self.order[0])
             exp_objs.append(exp_object)
         else:
             assert isinstance(
-                prompt_obj[0], ExperimentObject
+                prompt_obj[0], PromptObject
             ), f"Passed in wrong type: {type(prompt_obj[0])}"
             
             self.logger.debug(
