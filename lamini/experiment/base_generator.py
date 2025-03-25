@@ -75,6 +75,35 @@ class BaseGenerator:
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.logger.setLevel(logging.INFO)
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(name={self.name}, model={self.model}, role={self.role}, output_type={self.output_type}, instruction={self.instruction})"
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
+    def to_json(self):
+        """Convert generator configuration to a JSON-serializable dictionary.
+
+        Returns:
+            dict: Configuration parameters including name, model, role, output_type, and instruction
+        """
+        output_type_json = (
+            self.output_type.model_json_schema() 
+            if hasattr(self.output_type, "model_json_schema")
+            else str(self.output_type)
+        )
+
+        return {
+            "name": self.name,
+            "model": self.model,
+            "role": self.role,
+            "output_type": output_type_json,
+            "instruction": self.instruction
+        }
+
     def __call__(self, prompt_obj: PromptObject, debug=False, *args, **kwargs):
         """Execute the generator on a prompt object.
 
@@ -226,9 +255,7 @@ class BaseGenerator:
             try:
                 for item in self.metadata_keys:
                     if item not in prompt_obj.data:
-                        raise ValueError(
-                            f"Key {item} not found in input data to generator {self.name}"
-                        )
+                        return prompt_obj
                     metadata_values[item] = prompt_obj.data[item]
 
                 # Store these as inputs to the generator
@@ -240,7 +267,6 @@ class BaseGenerator:
                 self.logger.error(
                     f"Likely missing or incorrect keys in input data to {self.name}. Expected keys: {self.metadata_keys}. Error: {str(e)}"
                 )
-                raise
 
         if self.role:
             prompt_obj.prompt = self.role + "\n\n" + prompt_obj.prompt
@@ -298,3 +324,5 @@ class BaseGenerator:
             )
         )
         return prompt_obj
+
+

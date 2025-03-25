@@ -1,4 +1,4 @@
-
+from typing import Any
 from lamini.generation.base_prompt_object import PromptObject
 
 class ExperimentObject(PromptObject):
@@ -28,7 +28,7 @@ class ExperimentObject(PromptObject):
         Additional metadata and parameters associated with the experiment
     """
     
-    def __init__(self, experiment_step: str, data: dict = None) -> None:
+    def __init__(self, experiment_step: Any, data: dict = None) -> None:
         """
         Initialize a new BaseExperimentObject instance.
         

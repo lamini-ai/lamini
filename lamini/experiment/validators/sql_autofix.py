@@ -4,8 +4,12 @@ import sqlglot
 
 def extract_sql_part(query, db_type):
     try:
-        sqlglot.parse(sql, dialect=db_type)
-        return query
+        parsed = sqlglot.parse(query, dialect=db_type)
+
+        # sqlglot unexpectly parses this syntax invalid sql without errors as a Column
+        # "\n\n```sql\nSELECT product FROM sales;\n```"
+        if len(parsed) > 0 and not isinstance(parsed[0], sqlglot.expressions.Column):
+            return query
     except:
         pass
 
@@ -116,6 +120,14 @@ def find_aliases(ast):
 
     return aliases
 
+def find_table_aliases(ast):
+    aliases = {}
+    tables = [node for node in ast.find_all(sqlglot.expressions.Table)]
+    for table in tables:
+        aliases[table.alias.upper()] = table.this.name.upper()
+
+    return aliases
+
 def find_similar_col(col, val, col_table_map, eq_pairs):
     if len(val.sql()) < 3:
         return None
@@ -206,3 +218,106 @@ def fix_stmt_count(sql, db_type):
         new_sql = 'BEGIN ' + '; '.join(new_sql_list) + '; END'
 
     return new_sql
+
+def fix_date_cols(sql, db_type, col_val_map):
+    try:
+        sqlglot.parse(sql, dialect=db_type)
+    except:
+        return sql
+
+    ast = sqlglot.parse_one(sql, dialect=db_type)
+    selects = ast.find_all(sqlglot.expressions.Select)
+    aliases = find_aliases(ast)
+    table_aliases = find_table_aliases(ast)
+    date_cols = set()
+    updated = False
+
+    for select in selects:
+        select_cols = []
+
+        for expr in select.args['expressions']:
+            if isinstance(expr, sqlglot.expressions.Column):
+                select_cols.append(expr)
+
+        from_info = select.args.get("from")
+
+        if from_info is None:
+            continue
+        else:
+            from_expr = from_info.this
+
+        if isinstance(from_expr, sqlglot.expressions.Table):
+            table = from_expr.name.upper()
+        else:
+            continue
+
+        where_expr = select.args.get("where")
+
+        if not where_expr:
+            continue
+
+        for c in find_date_types(where_expr):
+            if c.table and c.table.upper() in table_aliases:
+                table = table_aliases[c.table.upper()].upper()
+            cstr = c.name.upper()
+            if table in col_val_map and cstr in col_val_map[table] and col_val_map[table][cstr]:
+                actual_col_val = col_val_map[table][cstr]
+                if isinstance(actual_col_val, str) and is_yyyy_mm_format(actual_col_val):
+                    date_cols.add(c)
+
+    for col in date_cols:
+        col_copy = col.copy()
+        column_node = get_concat_expr(col_copy, '-01')
+        col.replace(column_node)
+        updated = True
+
+    if updated:
+        return ast.sql(dialect=db_type)
+    else:
+        return sql
+
+def is_yyyy_mm_format(date_str):
+    pattern1 = r'^\d{4}-\d{2}$'
+    pattern2 = r'^\d{6}$'
+    return bool(re.match(pattern1, date_str)) or \
+        bool(re.match(pattern2, date_str))
+
+def find_date_types(expr):
+    between_expr = expr.find_all(sqlglot.expressions.Between)
+    date_cols = set()
+
+    for between in between_expr:
+        col = between.this
+
+        if col in date_cols:
+            continue
+
+        if isinstance(col, sqlglot.expressions.TsOrDsToDate):
+            if isinstance(col.this, sqlglot.expressions.Column):
+                date_cols.add(col.this)
+        elif isinstance(col, sqlglot.expressions.Column):
+            low = between.args.get('low')
+            high = between.args.get('high')
+            rhs_parts = [low, high]
+
+            for rhs in rhs_parts:
+                if rhs and is_date_type(rhs):
+                    date_cols.add(col)
+                    break
+
+    return date_cols
+
+def get_concat_expr(expr, concat_part):
+    return sqlglot.expressions.Concat(
+        expressions=[
+            expr,
+            sqlglot.expressions.Literal.string("-01")
+        ]
+    )
+
+def is_date_type(expr):
+    if isinstance(expr, sqlglot.expressions.DateAdd) and \
+       isinstance(expr.this, sqlglot.expressions.CurrentDate):
+        return True
+
+    return False

@@ -111,6 +111,7 @@ class BaseAgenticPipeline:
         record_dir: str = None,
         record_step: bool = True,
         record_results: bool = True,
+        save_keys: list[str] = None,
     ):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.logger.setLevel(logging.INFO)
@@ -159,14 +160,45 @@ class BaseAgenticPipeline:
             
         self.order.append(PipelineStep(
             SaveGenerator(
-                self.record_dir + "/pipeline_results.jsonl"
+                save_path=self.record_dir + "/pipeline_results.jsonl",
+                save_keys=save_keys
             )
         ))
 
         for idx, step in enumerate(self.order[:-1]):
             step.next = self.order[idx+1]
 
-            
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(generators={list(self.generators.keys())}, "
+            f"validators={list(self.validators.keys())}, "
+            f"order={self.name_order})"
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
+    def to_json(self):
+        """Convert pipeline configuration to a JSON-serializable dictionary.
+
+        Returns:
+            dict: Configuration parameters including generators, validators, execution order,
+                  and recording settings
+        """
+        return {
+            "generators": {
+                name: generator.to_json() for name, generator in self.generators.items()
+            },
+            "validators": {
+                name: validator.to_json() for name, validator in self.validators.items()
+            },
+            "execution_order": self.name_order,
+            "record_directory": self.record_dir,
+            "record_step": self.record_step,
+            "record_results": self.record_results
+        }
+
     def _process_and_save_data(
         self,
         prompt_objects: List[ExperimentObject],
@@ -345,7 +377,7 @@ class BaseAgenticPipeline:
                             if step.next:
                                 if isinstance(output, list):
                                     exp_objs = [
-                                        ExperimentObject(deepcopy(item.data), exp_obj.step.next)
+                                        ExperimentObject(experiment_step=exp_obj.step.next, data=deepcopy(item.data))
                                         for item in output if hasattr(item, "response") and item.response
                                     ]
                                     step.next.queue.extend(exp_objs)
@@ -369,17 +401,131 @@ class BaseAgenticPipeline:
             sys.exit(0)
         return results
 
+    def pipeline_step_logic(self, exp_obj: ExperimentObject):
+        """Validates the logical connections between pipeline steps by checking input/output key compatibility.
+
+        This method ensures that each step in the pipeline has access to all required input keys
+        from the previous steps' outputs.
+
+        Parameters
+        ----------
+        exp_obj : ExperimentObject
+            The experiment object to validate against the pipeline steps.
+
+        Raises
+        ------
+        ValueError
+            If any step's required input keys are not present in the accumulated outputs
+            from previous steps.
+
+        Notes
+        -----
+        The validation process:
+        1. Starts with the initial experiment object's data
+        2. For each step, verifies that all required input keys are available
+        3. Accumulates output keys for the next step's validation
+        4. Tracks the progression through steps for detailed error reporting
+        """
+        self.logger.info("Starting pipeline step logic validation")
+        prior_step = "(ExperimentObject Input)"
+        prior_step_output = deepcopy(exp_obj.data)
+        self.logger.debug(f"Initial data keys: {list(prior_step_output.keys())}")
+
+        for step in self.order:
+            self.logger.debug(f"Validating step '{step.worker.name}' input requirements")
+            if not set(step.worker.input.keys()).issubset(set(prior_step_output.keys())):
+                self.logger.error(
+                    f"Step validation failed: {step.worker.name} requires keys {step.worker.input.keys()} "
+                    f"but only found {prior_step_output.keys()} from {prior_step}"
+                )
+                raise ValueError(
+                    f"Error in {prior_step} connection to {step.worker.name}!",
+                    f"Step {step.worker.name} input keys {step.worker.input.keys()} are not all present in {prior_step} output keys {prior_step_output.keys()}"
+                )
+            prior_step_output.update(step.worker.output)
+            prior_step = step.worker.name
+        
+        self.logger.info("Pipeline step logic validation completed successfully")
+
+    def pipline_spotcheck(self, exp_obj: ExperimentObject, debug: bool = False):
+        """Executes a single sample through the pipeline to verify functionality of all steps.
+
+        This method runs a test execution of the complete pipeline using one sample,
+        providing detailed logging and error checking at each step.
+
+        Parameters
+        ----------
+        exp_obj : ExperimentObject
+            The experiment object to use for the test execution.
+        debug : bool, optional
+            Whether to enable debug-level logging, by default False.
+
+        Raises
+        ------
+        Exception
+            If any step returns an empty response or encounters an error during execution.
+
+        Notes
+        -----
+        The spotcheck process:
+        1. Executes each pipeline step sequentially
+        2. Handles different output types (list, dict, or direct output)
+        3. Records intermediate results
+        4. Provides progress tracking via tqdm
+        5. Prints step outputs for manual verification
+        """
+        print("\nRunning pipeline spotcheck - This test executes one sample through the pipeline to verify all steps are working correctly\n")
+        self.logger.info("Starting pipeline spotcheck execution")
+        with tqdm(total=len(self.order), desc=f"Running Pipeline Spotcheck") as pipeline_tracker:
+            for idx, step in enumerate(self.order):
+                self.logger.debug(f"Executing step {idx+1}/{len(self.order)}: {step.worker.name}")
+                pipeline_tracker.set_description(f"Running Pipeline Spotcheck - {idx+1}/{len(self.order)} - {step.worker.name}")
+                try:
+                    output = step.worker(exp_obj, debug=debug)
+                    if isinstance(output, list):
+                        step_output = output[0].data[f"{step.worker.name}_output"]
+                        print(step_output)
+                        
+                        self._record_step(output, step.worker.name)
+                        if len(output) == 0:
+                            self.logger.warning(f"Step {step.worker.name} returned an empty response, most likely due to an error from step inference (possible causes: prompt too long, invalid input format). Run in debug mode to see more details.")
+                            raise Exception(f"Step {step.worker.name} returned an empty response, most likely due to an error from step inference. Check if your prompt length exceeds the model's token limit or if the input format is invalid. Run in debug mode to see more details.")
+                        exp_obj = output[0]
+                        self.logger.debug(f"Step {step.worker.name} returned list output, using first element")
+                    elif isinstance(output, dict):
+                        step_output = output.data[f"{step.worker.name}_output"]
+                        print(step_output)
+
+                        if not step_output:
+                            self.logger.warning(f"Step {step.worker.name} returned an empty response, most likely due to an error from step inference")
+                            raise Exception(f"Step {step.worker.name} returned an empty response, most likely due to an error from step inference")
+                        self._record_step([output], step.worker.name)
+                        exp_obj = output
+                    else:
+                        step_output = output.data[f"{step.worker.name}_output"]
+                        print(step_output)
+                        self._record_step([output], step.worker.name)
+                        exp_obj = output
+                    self.logger.debug(f"Step {step.worker.name} completed successfully")
+                except Exception as e:
+                    self.logger.error(f"Step {step.worker.name} failed with error: {str(e)}")
+                    raise e
+                pipeline_tracker.update(1)
+        
+        self.logger.info("Pipeline spotcheck completed successfully")
+
     def __call__(
-        self, prompt_obj: Union[ExperimentObject, List[ExperimentObject]], debug: bool = False
+        self, prompt_obj: Union[PromptObject, ExperimentObject, List[PromptObject], List[ExperimentObject]], debug: bool = False
     ):
         """Execute the pipeline on one or more PromptObjects.
 
         Main entry point for pipeline execution. Handles both single items and batches,
-        with proper error handling and result recording.
+        with proper error handling and result recording. Before processing the full dataset,
+        performs validation checks to ensure pipeline configuration is correct.
 
         Args:
-            prompt_obj (Union[PromptObject, List[PromptObject]]): The input(s) to process.
-                Can be either a single PromptObject or a list of them for batch processing.
+            prompt_obj (Union[PromptObject, ExperimentObject, List[PromptObject], List[ExperimentObject]]): 
+                The input(s) to process. Can be either a single object or a list for batch processing.
             debug (bool, optional): Whether to enable debug logging. Defaults to False.
 
         Returns:
@@ -388,24 +534,53 @@ class BaseAgenticPipeline:
 
         Raises:
             AssertionError: If batch input contains non-PromptObject items
+            ValueError: If pipeline step logic validation fails (missing required input/output keys)
+            Exception: If pipeline spotcheck fails (e.g., empty responses from any step)
+
+        Notes:
+            The execution process includes three phases:
+            1. Pipeline Logic Validation - Verifies that each step's required input keys
+               are available from previous steps' outputs
+            2. Pipeline Spotcheck - Runs a single sample through the complete pipeline
+               to verify functionality of all steps
+            3. Full Dataset Processing - Processes all input data through the validated pipeline
         """
+        if not debug:
+            logging.disable(logging.CRITICAL)
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         exp_objs = []
         if isinstance(prompt_obj, PromptObject):
             self.logger.debug(f"Running Agentic Pipeline on data: {prompt_obj.data}...")
-            exp_object = ExperimentObject(prompt_obj.data, self.order[0])
+            exp_object = ExperimentObject(
+                experiment_step=self.order[0],
+                data=prompt_obj.data
+            )
             exp_objs.append(exp_object)
-        else:
+        elif isinstance(prompt_obj, ExperimentObject):
+            self.logger.debug(f"Running Agentic Pipeline on data: {prompt_obj.data}...")
+            exp_objs.append(prompt_obj)
+        elif isinstance(prompt_obj, List):
             assert isinstance(
-                prompt_obj[0], PromptObject
+                prompt_obj[0], (ExperimentObject, PromptObject)
             ), f"Passed in wrong type: {type(prompt_obj[0])}"
             
             self.logger.debug(
                 f"Running Batch Agentic Pipeline on {len(prompt_obj)} items..."
             )
             for obj in prompt_obj:
-                exp_object = ExperimentObject(obj.data, self.order[0])
-                exp_objs.append(exp_object)
+                if isinstance(obj, PromptObject):
+                    obj = ExperimentObject(
+                        experiment_step=self.order[0],
+                        data=obj.data
+                    )
+                exp_objs.append(obj)
+
+        # Pipeline Health Check
+        self.pipeline_step_logic(exp_objs[0])
+        self.pipline_spotcheck(exp_objs[0], debug=debug)
+
+        #Execute Pipeline
+        print("\nPipeline spotcheck Completed! - Executing all data through pipeline\n")
 
         return self.run_pipeline(exp_objs, debug=debug)
     

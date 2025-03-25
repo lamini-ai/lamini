@@ -32,7 +32,7 @@ class SQLValidator(BaseSQLValidator):
         self.db_type = db_type
         self.skip_autofixes = skip_autofixes
         self.input[self.sql_key] = "str"
-        self.col_table_map = self.get_db_col_info()
+        self.col_table_map, self.col_val_map = self.get_db_col_info()
 
     def __call__(self, prompt_obj, debug=False):
         """
@@ -52,30 +52,32 @@ class SQLValidator(BaseSQLValidator):
         if not query.endswith(';'):
             query += ';'
 
-        db_can_execute = False
+        can_explain_query_plan = False
 
         try:
             cursor = self.conn.cursor()
             cursor.execute(f"EXPLAIN QUERY PLAN {query}")
             prompt_obj.response = self.create_success_response()
-            db_can_execute = True
+            can_explain_query_plan = True
         except Exception as e:
             prompt_obj.response = self.create_error_response(str(e))
 
-        valid_autofixes = set(['extract_sql', 'fix_statement_count', 'fix_column'])
+        valid_autofixes = set(['extract_sql', 'fix_statement_count', 'fix_column', 'fix_dates'])
         autofixes = valid_autofixes - set(self.skip_autofixes)
 
         if len(autofixes) + len(self.skip_autofixes) > len(valid_autofixes):
             raise Exception(f"Valid autofix options are {valid_autofixes}. You have used {self.skip_autofixes}")
 
-        if not db_can_execute and len(autofixes) > 0:
-            if 'extract_sql' in autofixes and query:
+        if len(autofixes) > 0:
+            if not can_explain_query_plan and 'extract_sql' in autofixes and query:
                 query = sql_autofix.extract_sql_part(query, self.db_type)
-            if 'fix_statement_count' in autofixes and query:
+            if not can_explain_query_plan and 'fix_statement_count' in autofixes and query:
                 if 'gpt4' in self.model and self.db_type == 'snowflake':
                     query = sql_autofix.fix_stmt_count(query, self.db_type)
-            if 'fix_column' in autofixes and query:
+            if not can_explain_query_plan and 'fix_column' in autofixes and query:
                 query = sql_autofix.fix_invalid_col(query, self.col_table_map, self.db_type)
+            if 'fix_dates' in autofixes and query:
+                query = sql_autofix.fix_date_cols(query, self.db_type, self.col_val_map)
 
             if query:
                 if not query.endswith(';'):
@@ -85,7 +87,7 @@ class SQLValidator(BaseSQLValidator):
                     cursor.execute(f"EXPLAIN QUERY PLAN {query}")
                     prompt_obj.data[self.sql_key] = query
                     prompt_obj.response = self.create_success_response()
-                    db_can_execute = True
+                    can_explain_query_plan = True
                 except:
                     pass
 
@@ -99,10 +101,12 @@ class SQLValidator(BaseSQLValidator):
 
         inspector = inspect(engine)
         col_table_map = {}
+        col_val_map = {}
 
         for table in inspector.get_table_names():
             columns = inspector.get_columns(table)
             table = table.upper()
+            col_val_map[table] = {}
 
             for c in columns:
                 c = c['name'].upper()
@@ -111,7 +115,14 @@ class SQLValidator(BaseSQLValidator):
                 else:
                     col_table_map[c] = set()
 
-        return col_table_map
+                query = f'SELECT {c} from {table} LIMIT 1;'
+                res = self.conn.execute(query).fetchone()
+
+                if res:
+                    res = res[0]
+                    col_val_map[table][c] = res
+
+        return col_table_map, col_val_map
 
     def create_error_response(self, error_msg):
         """Create error response"""
