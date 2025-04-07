@@ -1,7 +1,7 @@
 from collections import Counter
 from typing import List, Dict, Optional, Union
 
-from lamini.experiment.base_generator import BaseGenerator
+from lamini.experiment.generators import BaseGenerator
 from lamini.generation.base_prompt_object import PromptObject
 
 class TopicAnalyzerGenerator(BaseGenerator):

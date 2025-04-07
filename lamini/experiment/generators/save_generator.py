@@ -1,4 +1,7 @@
+import logging
+
 import pandas as pd
+import logging
 
 from lamini.experiment.utils import remove_non_ascii
 from lamini.experiment.generators import BaseGenerator
@@ -32,7 +35,9 @@ class SaveGenerator(BaseGenerator):
 
     def __init__(self, save_path: str, save_keys: list[str] = None):
         self.save_path = save_path
-        self.input = {key_: "str" for key_ in save_keys}
+        self.input = {}
+        if save_keys is not None:  # Only create key mapping if save_keys is provided
+            self.input = {key_: "str" for key_ in save_keys}
         self.output = {}
         self.name = "SaveGenerator"
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")

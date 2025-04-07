@@ -1,6 +1,8 @@
 import logging
 from typing import Union, List, Dict
 import os
+import json
+import yaml
 from pydantic import BaseModel
 
 from lamini.generation.base_prompt_object import PromptObject
@@ -115,3 +117,22 @@ class BaseMemoryExperiment:
         self.logger.debug(f"[Memory Experiment] Agentic Pipeline results: {results}")
 
         return results
+
+    def pipeline_from_json(self, config_path: str):
+        """Load a pipeline from a JSON file.
+
+        Args:
+            config_path (str): The path to the JSON file containing the pipeline configuration.   
+
+        Returns:
+            BaseAgenticPipeline: The loaded pipeline.
+        """
+        with open(config_path, 'r') as f:
+            if config_path.endswith('.json'):
+                pipeline_config = json.load(f)
+            elif config_path.endswith('.yaml'):
+                pipeline_config = yaml.load(f)
+            else:
+                raise ValueError(f"Unsupported file extension: {config_path}")
+        return BaseAgenticPipeline.from_json(pipeline_config)
+
