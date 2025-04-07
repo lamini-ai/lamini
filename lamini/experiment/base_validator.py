@@ -1,8 +1,8 @@
 from pydantic import BaseModel, create_model
-from typing import Union, Dict, Optional, Type
+from typing import Dict, Optional, Type, Any
 
 from lamini.api.openai_client import BaseOpenAIClient
-from lamini.experiment.base_generator import BaseGenerator
+from lamini.experiment.generators import BaseGenerator
 
 
 class DefaultOutputType(BaseModel):
@@ -115,6 +115,18 @@ class BaseValidator(BaseGenerator):
             fields[self.is_valid_field] = (bool, ...)
 
         return create_model("DynamicModel", **fields)
+
+    @classmethod
+    def from_json(cls, validator_config: Dict[str, Any]):
+        """Load a validator from a JSON file.
+
+        Args:
+            validator_config (Dict[str, Any]): The validator configuration.
+
+        Returns:
+            BaseValidator: The loaded validator.
+        """
+        return BaseValidator(**validator_config)
 
     def __call__(self, prompt_obj, debug=False):
         """Execute the validator on a prompt object.

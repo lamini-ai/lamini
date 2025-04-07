@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Union, Dict, List, Optional, Iterator, AsyncIterator
+from typing import Union, Dict, Any, Optional
 import logging
 import re
 import warnings
@@ -75,6 +75,59 @@ class BaseGenerator:
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.logger.setLevel(logging.INFO)
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(name={self.name}, model={self.model}, role={self.role}, output_type={self.output_type}, instruction={self.instruction})"
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
+    def to_json(self):
+        """Convert generator configuration to a JSON-serializable dictionary.
+
+        Returns:
+            dict: Configuration parameters including name, model, role, output_type, and instruction
+        """
+        output_type_json = (
+            self.output_type.model_json_schema() 
+            if hasattr(self.output_type, "model_json_schema")
+            else str(self.output_type)
+        )
+
+        return {
+            "name": self.name,
+            "model": self.model,
+            "role": self.role,
+            "output_type": output_type_json,
+            "instruction": self.instruction
+        }
+
+    @classmethod
+    def from_json(cls, generator_config: Dict[str, Any]):
+        """Load a generator from a JSON file.
+
+        Args:
+            generator_config (Dict[str, Any]): The generator configuration.
+
+        Returns:
+            BaseGenerator: The loaded generator.
+        """
+        # If output_type is a string representation of a dict, evaluate it
+        if isinstance(generator_config.get('output_type'), str) and generator_config['output_type'].startswith('{'):
+            try:
+                generator_config['output_type'] = eval(generator_config['output_type'])
+            except:
+                pass
+        # If output_type is a dictionary with schema information, convert it to a dict
+        elif isinstance(generator_config.get('output_type'), dict) and 'properties' in generator_config['output_type']:
+            generator_config['output_type'] = {
+                k: v.get('type', 'string') 
+                for k, v in generator_config['output_type']['properties'].items()
+            }
+        return cls(**generator_config)
+    
     def __call__(self, prompt_obj: PromptObject, debug=False, *args, **kwargs):
         """Execute the generator on a prompt object.
 

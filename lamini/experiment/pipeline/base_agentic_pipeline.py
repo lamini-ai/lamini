@@ -1,7 +1,7 @@
 import logging
 import sys
 from tqdm import tqdm
-from typing import Union, List
+from typing import Union, List, Dict, Any
 import pandas as pd
 from datetime import datetime
 import os
@@ -161,7 +161,7 @@ class BaseAgenticPipeline:
         self.order.append(PipelineStep(
             SaveGenerator(
                 save_path=self.record_dir + "/pipeline_results.jsonl",
-                save_keys=save_keys
+                save_keys=save_keys if save_keys else list(self.order[-1].worker.output.keys())
             )
         ))
 
@@ -583,4 +583,29 @@ class BaseAgenticPipeline:
         print("\nPipeline spotcheck Completed! - Executing all data through pipeline\n")
 
         return self.run_pipeline(exp_objs, debug=debug)
-    
+
+    @classmethod
+    def from_json(cls,pipeline_config: Dict[str, Any]):
+        """Load a pipeline from a JSON file.    
+
+        Args:
+            pipeline_config (Dict[str, Any]): The pipeline configuration.
+
+        Returns:
+            BaseAgenticPipeline: The loaded pipeline.
+        """
+        generators = {}
+        validators = {}
+        for generator_name, generator_config in pipeline_config['generators'].items():
+            generators[generator_name] = BaseGenerator.from_json(generator_config)
+        for validator_name, validator_config in pipeline_config['validators'].items():
+            validators[validator_name] = BaseValidator.from_json(validator_config)
+
+        return BaseAgenticPipeline(
+            generators=generators,
+            validators=validators,
+            order=pipeline_config['execution_order'],
+            record_dir=pipeline_config['record_directory'],
+            record_step=pipeline_config['record_step'],
+            record_results=pipeline_config['record_results']
+        )
