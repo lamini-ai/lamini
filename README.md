@@ -28,3 +28,10 @@ Package documentation here: [https://lamini-ai.github.io/](https://lamini-ai.git
 ## Github
 
 Package source code here: [https://github.com/lamini-ai/lamini](https://github.com/lamini-ai/lamini)
+
+---
+
+### ✨ Notes by @sadosist  
+Exploring Lamini SDK integration for adaptive AI agents and open fine-tuning research.  
+Early contributor & community tester. 🚀  
+#LaminiAI #AIinfra #opensource
